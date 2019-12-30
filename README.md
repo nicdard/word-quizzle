@@ -35,8 +35,8 @@ The server disposes this set of methods:
 * Registrations, friendship relations and scores for every user are stored in JSON files by the server.
 ## 3. Execution and delivery method
 The delivered material must include:
-* the application code and optionally the tests suits.
-* The report in pdf format containing:
+* the application code and optionally the tests suits;
+* the report in pdf format containing:
     * a general motivated architectural description of the system;
     * a general schema of the threads activated by any component and of the data structures correlated with a description of the concurrence control strategies;
     * a brief description of the classes and precise indications about the execution; 

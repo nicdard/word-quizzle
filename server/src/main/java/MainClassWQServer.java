@@ -4,7 +4,7 @@ public class MainClassWQServer {
     private final static int DEFAULT_DICTIONARY_CHALLENGE_LENGTH = 10;
     private static DictionaryService dictionaryService;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         System.out.println("Starting server");
         // 0. Initialisation
         int dictionaryLength = DEFAULT_DICTIONARY_CHALLENGE_LENGTH;
@@ -18,5 +18,20 @@ public class MainClassWQServer {
             return;
         }
         MainClassWQServer.dictionaryService = new DictionaryService(dictionaryLength);
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while(true) {
+                    System.out.println("Ciao");
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+        thread.start();
+        System.out.println("Bye server");
     }
 }
