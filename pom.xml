@@ -78,6 +78,29 @@
                             </arguments>
                         </configuration>
                     </execution>
+                    <!-- Executes in a separate process an instance of the client
+                         This is done to allow multiple users testing
+                    -->
+                    <execution>
+                        <id>client-process</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>start</goal>
+                        </goals>
+                        <configuration>
+                            <name>WQClient</name>
+                            <waitForInterrupt>false</waitForInterrupt>
+                            <waitAfterLaunch>3</waitAfterLaunch>
+                            <!--<healthcheckUrl>http://localhost:8381/healthcheck</healthcheckUrl>-->
+                            <arguments>
+                                <argument>java</argument>
+                                <argument>-cp</argument>
+                                <argument>${project.basedir}/client/target/classes/</argument>
+                                <argument>MainClassWQClient</argument>
+                                <!-- Add another argument target to pass a configuration file -->
+                            </arguments>
+                        </configuration>
+                    </execution>
                     <!--Stop all processes in reverse order-->
                     <execution>
                         <id>stop-all</id>
