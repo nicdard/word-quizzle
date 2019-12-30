@@ -18,20 +18,16 @@ public class MainClassWQServer {
             return;
         }
         MainClassWQServer.dictionaryService = new DictionaryService(dictionaryLength);
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while(true) {
-                    System.out.println("Ciao");
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
+        int counter = 0;
+        while(counter < 10) {
+            System.out.println("Ciao");
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-        });
-        thread.start();
+            counter++;
+        }
         System.out.println("Bye server");
     }
 }

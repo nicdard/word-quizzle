@@ -16,11 +16,31 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
-                <version>1.6.0</version>
-                <configuration>
-                    <mainClass>MainClassWQServer</mainClass>
-                </configuration>
+                <configuration><skip>true</skip></configuration>
             </plugin>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration><skip>true</skip></configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.bazaarvoice.maven.plugins</groupId>
+                <artifactId>process-exec-maven-plugin</artifactId>
+                <version>0.9</version>
+                <configuration><skip>true</skip></configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <executions>
+                    <execution>
+                        <!-- This plugin doesn't have the skip configuration, this is a workaround -->
+                        <phase/>
+                    </execution>
+                </executions>
+            </plugin>
+
         </plugins>
     </build>
 

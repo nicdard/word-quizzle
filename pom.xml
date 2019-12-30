@@ -3,6 +3,9 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+    <prerequisites>
+        <maven>3.0.0</maven>
+    </prerequisites>
 
     <groupId>unipi.network</groupId>
     <artifactId>word-quizzle</artifactId>
@@ -29,7 +32,7 @@
                     <version>1.6.0</version>
                     <executions>
                         <execution>
-                            <phase>verify</phase>
+                            <phase>integration-test</phase>
                             <goals>
                                 <goal>java</goal>
                             </goals>
@@ -47,6 +50,44 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.22.2</version>
             </plugin>
+            <!-- Execution of server and client
+                 https://github.com/bazaarvoice/maven-process-plugin -->
+            <plugin>
+                <groupId>com.bazaarvoice.maven.plugins</groupId>
+                <artifactId>process-exec-maven-plugin</artifactId>
+                <version>0.9</version>
+                <executions>
+                    <!--Start process 1, eg., a dropwizard app dependency-->
+                    <execution>
+                        <id>server-process</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>start</goal>
+                        </goals>
+                        <configuration>
+                            <name>WQServer</name>
+                            <waitForInterrupt>false</waitForInterrupt>
+                            <waitAfterLaunch>3</waitAfterLaunch>
+                            <!--<healthcheckUrl>http://localhost:8381/healthcheck</healthcheckUrl>-->
+                            <arguments>
+                                <argument>java</argument>
+                                <argument>-cp</argument>
+                                <argument>${project.basedir}/server/target/classes/</argument>
+                                <argument>MainClassWQServer</argument>
+                                <!-- Add another argument target to pass a configuration file -->
+                            </arguments>
+                        </configuration>
+                    </execution>
+                    <!--Stop all processes in reverse order-->
+                    <execution>
+                        <id>stop-all</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>stop-all</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
@@ -57,6 +98,14 @@
             <version>5.4.2</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.bazaarvoice.maven.plugins/process-exec-maven-plugin -->
+        <dependency>
+            <groupId>com.bazaarvoice.maven.plugins</groupId>
+            <artifactId>process-exec-maven-plugin</artifactId>
+            <version>0.9</version>
+        </dependency>
+
     </dependencies>
 
 </project>
