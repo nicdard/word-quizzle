@@ -9,7 +9,7 @@ The application is implemented according to a client-server architecture.
 
 # Implementation guidelines
  
-##1. Operations 
+## 1. Operations 
 The server disposes this set of methods:
 * register(nickname, password): requests registration for a new user. The server sends back a successful response code if the nickname is not yet assigned to any other user registered to the system and the password is not empty, an error code describing the problem otherwise. 
 * login(nickname, password): registered user login to the service. The server answers with a successful response code when done correctly or with an error message if the user is already logged in or if a wrong password is provided.
@@ -25,7 +25,7 @@ The server disposes this set of methods:
     (The values K, N, TTL, T, X, Y, Z are up to the student's will).
 * getUserScore(nickUser): the server provides the **user score**. It is the sum of all the challenge points gained by the user in challenges.
 * showRanking(nickUser): returns the ranking list of nickUser and his/her friends as JSON. This ranking list is calculated according to the user score of every user considered in the list.
-##2. Protocols and specifications
+## 2. Protocols and specifications
 * The registration phase uses RMI.
 * The login phase is the first phase to be performed after a TCP connection is established with the server. Over this TCP connection client and server will continue interact (requests/responses) after a successful login.
 * Challenge requests are forwarded using UDP protocol from the server to player2.
@@ -33,7 +33,7 @@ The server disposes this set of methods:
 * The server has a list of N italian words stored in a file. During the setup of a challenge it selects K randomly words from the list. Before starting the challenge but only after palyer2 accepts it, the server gets the translations of the words selected via an HTTP GET call to the third-party service https://mymemory.translated.net/doc/spec.php​. Translations are stored for the whole time of the challenge to verify player answers rightness.
 * The end user interacts with WQ by means of a GUI or a simple command line interface.
 * Registrations, friendship relations and scores for every user are stored in JSON files by the server.
-##3. Execution and delivery method
+## 3. Execution and delivery method
 The delivered material must include:
 * the application code and optionally the tests suits.
 * The report in pdf format containing:
