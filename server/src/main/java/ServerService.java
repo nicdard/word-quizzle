@@ -1,5 +1,3 @@
-package server;
-
 public interface ServerService {
 
     void register();

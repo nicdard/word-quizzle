@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
 
 mvn clean package;
-java -cp target/classes/ client.Main;
+java -cp server/target/classes/ MainClassWQServer;
+java -cp client/target/classes/ MainClassWQClient;

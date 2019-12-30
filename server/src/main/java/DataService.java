@@ -1,5 +1,3 @@
-package server;
-
 public interface DataService<T> {
 
     boolean store(T obj);

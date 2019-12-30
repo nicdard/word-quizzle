@@ -1,12 +1,11 @@
-package server;
-
-public class Main {
+public class MainClassWQServer {
 
     private final static String USAGE_MSG = "Usage: ";
     private final static int DEFAULT_DICTIONARY_CHALLENGE_LENGTH = 10;
     private static DictionaryService dictionaryService;
 
     public static void main(String[] args) {
+        System.out.println("Starting server");
         // 0. Initialisation
         int dictionaryLength = DEFAULT_DICTIONARY_CHALLENGE_LENGTH;
         try {
@@ -18,6 +17,6 @@ public class Main {
             System.out.println(USAGE_MSG);
             return;
         }
-        Main.dictionaryService = new DictionaryService(dictionaryLength);
+        MainClassWQServer.dictionaryService = new DictionaryService(dictionaryLength);
     }
 }
