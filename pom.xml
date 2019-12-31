@@ -24,23 +24,6 @@
     </properties>
 
     <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.codehaus.mojo</groupId>
-                    <artifactId>exec-maven-plugin</artifactId>
-                    <version>1.6.0</version>
-                    <executions>
-                        <execution>
-                            <phase>integration-test</phase>
-                            <goals>
-                                <goal>java</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-            </plugins>
-        </pluginManagement>
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -67,12 +50,13 @@
                         <configuration>
                             <name>WQServer</name>
                             <waitForInterrupt>false</waitForInterrupt>
-                            <waitAfterLaunch>3</waitAfterLaunch>
+                            <waitAfterLaunch>5</waitAfterLaunch>
+                            <workingDir>${basedir}/server/</workingDir>
                             <!--<healthcheckUrl>http://localhost:8381/healthcheck</healthcheckUrl>-->
                             <arguments>
                                 <argument>java</argument>
                                 <argument>-cp</argument>
-                                <argument>${project.basedir}/server/target/classes/</argument>
+                                <argument>${basedir}/server/target/classes/</argument>
                                 <argument>MainClassWQServer</argument>
                                 <!-- Add another argument target to pass a configuration file -->
                             </arguments>
@@ -90,12 +74,13 @@
                         <configuration>
                             <name>WQClient</name>
                             <waitForInterrupt>false</waitForInterrupt>
-                            <waitAfterLaunch>3</waitAfterLaunch>
+                            <waitAfterLaunch>5</waitAfterLaunch>
+                            <workingDir>${basedir}/client</workingDir>
                             <!--<healthcheckUrl>http://localhost:8381/healthcheck</healthcheckUrl>-->
                             <arguments>
                                 <argument>java</argument>
                                 <argument>-cp</argument>
-                                <argument>${project.basedir}/client/target/classes/</argument>
+                                <argument>${basedir}/client/target/classes/</argument>
                                 <argument>MainClassWQClient</argument>
                                 <!-- Add another argument target to pass a configuration file -->
                             </arguments>
@@ -119,16 +104,8 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>5.4.2</version>
-            <scope>test</scope>
+            <scope>test</scope> <!-- It's not included when packaging the application -->
         </dependency>
-
-        <!-- https://mvnrepository.com/artifact/com.bazaarvoice.maven.plugins/process-exec-maven-plugin -->
-        <dependency>
-            <groupId>com.bazaarvoice.maven.plugins</groupId>
-            <artifactId>process-exec-maven-plugin</artifactId>
-            <version>0.9</version>
-        </dependency>
-
     </dependencies>
 
 </project>
