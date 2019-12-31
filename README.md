@@ -30,7 +30,7 @@ The server disposes this set of methods:
 * The login phase is the first phase to be performed after a TCP connection is established with the server. Over this TCP connection client and server will continue interact (requests/responses) after a successful login.
 * Challenge requests are forwarded using UDP protocol from the server to player2.
 * The server should be either multithreaded or implementing NIO multiplexing. 
-* The server has a list of N italian words stored in a file. During the setup of a challenge it selects K randomly words from the list. Before starting the challenge but only after palyer2 accepts it, the server gets the translations of the words selected via an HTTP GET call to the third-party service https://mymemory.translated.net/doc/spec.php​. Translations are stored for the whole time of the challenge to verify player answers rightness.
+* The server has a list of N italian words stored in a file. During the setup of a challenge it selects K randomly words from the list. Before starting the challenge but only after palyer2 accepts it, the server gets the translations of the words selected via an HTTP GET call to the third-party service **https://mymemory.translated.net/doc/spec.php​**. Translations are stored for the whole time of the challenge to verify player answers rightness.
 * The end user interacts with WQ by means of a GUI or a simple command line interface.
 * Registrations, friendship relations and scores for every user are stored in JSON files by the server.
 ## 3. Project execution and delivery method
