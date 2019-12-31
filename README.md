@@ -33,7 +33,7 @@ The server disposes this set of methods:
 * The server has a list of N italian words stored in a file. During the setup of a challenge it selects K randomly words from the list. Before starting the challenge but only after palyer2 accepts it, the server gets the translations of the words selected via an HTTP GET call to the third-party service https://mymemory.translated.net/doc/spec.php​. Translations are stored for the whole time of the challenge to verify player answers rightness.
 * The end user interacts with WQ by means of a GUI or a simple command line interface.
 * Registrations, friendship relations and scores for every user are stored in JSON files by the server.
-## 3. Execution and delivery method
+## 3. Project execution and delivery method
 The delivered material must include:
 * the application code and optionally the tests suits;
 * the report in pdf format containing:
