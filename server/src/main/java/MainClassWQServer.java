@@ -1,7 +1,3 @@
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-
 public class MainClassWQServer {
 
     private final static String USAGE_MSG = "Usage: ";

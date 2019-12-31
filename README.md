@@ -15,7 +15,7 @@ The server disposes this set of methods:
 * login(nickname, password): registered user login to the service. The server answers with a successful response code when done correctly or with an error message if the user is already logged in or if a wrong password is provided.
 * logout(nickname);
 * addFriend(nickUser1, nickUser2): adds a friend to both user1 and user2 friend lists. The server sends back a successful response code when the operation is done or an error code if one of the nicknames doesn't exist or if the users are already friends.
- Optionally the server can implement a confirm feature: user2 receives the request and can decide either to accept or decline the friendship.
+ Optionally the server can implement a confirmation feature: user2 receives the request and can decide either to accept or decline the friendship.
 * listFriends(nickname): ​lists all friends of a given user. The server response is a JSON representing the list of friends. 
 * challenge(nickUser, nickFriend): nickUser wants to challenge nickFriend. Before starting the challenge, the server checks whether nickFriend is a friend of nickUser, if not sends back an error code and stops the operations. To start a challenge the server sends to nickFriend a challenge-acceptance request. This request has a TTL and it is automatically considered rejected if not answered in time. The challenge starts when userFriend accepts it.
     1. The service randomly chooses K words from a dictionary of N italian ones (N >= K) which will delivered one by one to the participants during the challenge. The two have a timeout of T to answer to all questions. Every time a player gives a translation for a word, either correct or not, the server sends the next one to that player.
