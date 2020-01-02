@@ -24,6 +24,7 @@ class DummyTranslationService extends BaseTranslationService {
 
     @Override
     public List<String> translate(String word) throws UnavailableTranslationException, IllegalStateException {
+        this.checkTranslateContract();
         if (this.t.containsKey(word)) {
             return this.t.get(word);
         } else {

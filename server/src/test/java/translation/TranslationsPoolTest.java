@@ -1,6 +1,7 @@
 package translation;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -14,6 +15,12 @@ import java.util.Set;
 class TranslationsPoolTest {
 
     private final TranslationsPool translationsPool = TranslationsPool.getInstance(3);
+
+    @BeforeEach
+    void setLanguage() {
+        this.translationsPool.setISOSourceLanguage("it");
+        this.translationsPool.setISODestinationLanguage("en");
+    }
 
     @Test
     void testUnavailableTranslationException() {

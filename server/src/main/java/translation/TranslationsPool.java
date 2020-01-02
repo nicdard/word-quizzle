@@ -37,6 +37,7 @@ public class TranslationsPool extends BaseTranslationService {
 
     @Override
     public List<String> translate(String word) throws UnavailableTranslationException, IllegalStateException {
+        this.checkTranslateContract();
         if (hasTranslation(word)) {
             return this.pool.get(word).getTranslations();
         } else {
@@ -56,14 +57,18 @@ public class TranslationsPool extends BaseTranslationService {
 
     @Override
     public boolean setISOSourceLanguage(String sourceLanguageCode) {
-        // Invalidate the cache when setting another language
-        this.invalidateCache();
+        // Invalidate the cache only when setting a different language
+        if (!sourceLanguageCode.equals(this.getISOSourceLanguage())) {
+            this.invalidateCache();
+        }
         return super.setISOSourceLanguage(sourceLanguageCode);
     }
 
     @Override
     public boolean setISODestinationLanguage(String destinationLanguageCode) {
-        this.invalidateCache();
+        if (!destinationLanguageCode.equals(this.getISODestinationLanguage())) {
+            this.invalidateCache();
+        }
         return super.setISODestinationLanguage(destinationLanguageCode);
     }
 

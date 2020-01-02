@@ -105,6 +105,12 @@ public abstract class BaseTranslationService implements TranslationService {
         return this.destinationLanguageCode;
     }
 
+    protected boolean checkTranslateContract() throws IllegalStateException {
+        if (this.getISODestinationLanguage() == null || this.getISOSourceLanguage() == null)
+            throw new IllegalStateException("No destination and/or source language setting");
+        return true;
+    }
+
     /**
      * @param code the string representing a potential ISO 639-1 code
      * @return true if the provided code is an ISO 639-1 language code, false otherwise.
