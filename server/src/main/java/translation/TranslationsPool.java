@@ -28,7 +28,7 @@ public class TranslationsPool extends BaseTranslationService {
         this.pool = new ConcurrentHashMap<>();
     }
 
-    public static TranslationsPool getInstance(long maximumSize) {
+    synchronized static TranslationsPool getInstance(long maximumSize) {
         if (instance == null) {
             instance = new TranslationsPool(maximumSize);
         }
@@ -38,8 +38,10 @@ public class TranslationsPool extends BaseTranslationService {
     @Override
     public List<String> translate(String word) throws UnavailableTranslationException, IllegalStateException {
         this.checkTranslateContract();
-        if (hasTranslation(word)) {
-            return this.pool.get(word).getTranslations();
+        // Avoid using contains key to assure thread-safety
+        ItemValue itemValue = this.pool.get(word);
+        if (itemValue != null) {
+            return itemValue.getTranslations();
         } else {
             // Pass the request to the next handler.
             List<String> translations = super.translate(word);
@@ -76,16 +78,7 @@ public class TranslationsPool extends BaseTranslationService {
      * Replace the current pool with a new empty one.
      */
     private void invalidateCache() {
-        this.pool = new ConcurrentHashMap<>();
-    }
-
-    /**
-     * Checks if a given word is in the transation pool
-     * @param word
-     * @return true if word is a key of the pool
-     */
-    private boolean hasTranslation(String word) {
-        return this.pool.containsKey(word);
+        this.pool.clear();
     }
 
     /**

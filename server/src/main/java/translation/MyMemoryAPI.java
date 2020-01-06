@@ -18,7 +18,7 @@ public class MyMemoryAPI extends BaseTranslationService {
     /** Singleton pattern */
     private static MyMemoryAPI instance;
     private MyMemoryAPI() {}
-    static MyMemoryAPI getInstance() {
+    synchronized static MyMemoryAPI getInstance() {
         if (instance == null) {
             instance = new MyMemoryAPI();
         }
@@ -90,14 +90,11 @@ public class MyMemoryAPI extends BaseTranslationService {
         }
         @JsonIgnoreProperties(ignoreUnknown = true)
         private static class Match {
-            @JsonProperty("id") String id;
-            @JsonProperty("segment") String segment;
             @JsonProperty("translation") String translation;
             @JsonProperty("subject") String subject;
             @JsonProperty("match") double matchRate;
         }
         @JsonProperty("responseData") ResponseData responseData;
-        @JsonProperty("quotaFinished") boolean quotaFinished;
         @JsonProperty("responseStatus") Integer responseStatusCode;
         @JsonProperty("matches") Match[] matches;
     }

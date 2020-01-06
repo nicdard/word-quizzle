@@ -13,6 +13,8 @@ import java.util.Locale;
  */
 public abstract class BaseTranslationService implements TranslationService {
 
+    private static TranslationService chain;
+
     /** The next request handler */
     private TranslationService next;
 
@@ -31,19 +33,22 @@ public abstract class BaseTranslationService implements TranslationService {
      * Builds and configures a chain of TranslationServices according to the global Config.
      * @return the head of the TranslationServices chain
      */
-    public static TranslationService assemblyChain() {
-        Config config = Config.getInstance();
-        // This is the third-party service used to translate the words.
-        TranslationService head = MyMemoryAPI.getInstance();
-        // Chain assembler section.
-        if (config.useTranslationCache()) {
-            head.setNext(TranslationsPool.getInstance(config.getCacheMaxSize()));
+    synchronized static TranslationService getChain() {
+        if (chain == null) {
+            Config config = Config.getInstance();
+            // This is the third-party service used to translate the words.
+            TranslationService head = MyMemoryAPI.getInstance();
+            // Chain assembler section.
+            if (config.useTranslationCache()) {
+                head.setNext(TranslationsPool.getInstance(config.getCacheMaxSize()));
+            }
+            // Configures languages only at the end of the chain assembly process
+            // to propagate the settings.
+            head.setISOSourceLanguage(config.getISOSourceLanguage());
+            head.setISODestinationLanguage(config.getISODestinationLanguage());
+            chain = head;
         }
-        // Configures languages only at the end of the chain assembly process
-        // to propagate the settings.
-        head.setISOSourceLanguage(config.getISOSourceLanguage());
-        head.setISODestinationLanguage(config.getISODestinationLanguage());
-        return head;
+        return chain;
     }
 
     @Override
