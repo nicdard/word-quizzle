@@ -97,7 +97,7 @@ public class TranslationsPool extends BaseTranslationService {
     /**
      * A value of the map implementing the pool containing the translation of its key
      * and the last touch timestamp.
-     * It traces also the touches (get numbers) as a second comparing parameters
+     * It traces also the touches (gets from pool) as a second comparing parameters
      */
     private class ItemValue implements Comparable<ItemValue> {
         private List<String> translations;
@@ -148,7 +148,6 @@ public class TranslationsPool extends BaseTranslationService {
             this.touches++;
             this.lastTouchTimestamp = System.currentTimeMillis();
         }
-
 
         long getTouches() {
             return touches;

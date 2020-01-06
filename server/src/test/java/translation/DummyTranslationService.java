@@ -1,12 +1,9 @@
 package translation;
 
-import translation.BaseTranslationService;
-import translation.UnavailableTranslationException;
-
 import java.util.*;
 
 /**
- * A mock for a translationService to be used in tests.
+ * A translationService mock to be used in tests.
  * It provides just 5 entry by default (from italian to english):
  *   ciao, nome, verbo, codice, numero.
  */

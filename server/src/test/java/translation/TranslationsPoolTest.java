@@ -55,6 +55,12 @@ class TranslationsPoolTest {
                     "hello",
                     this.translationsPool.translate("ciao").get(0)
             );
+            // To be sure the first timestamp is the eldest
+            try {
+                Thread.sleep(20);
+            } catch (InterruptedException e) {
+
+            }
             Assertions.assertEquals(
                     "code",
                     this.translationsPool.translate("codice").get(0)

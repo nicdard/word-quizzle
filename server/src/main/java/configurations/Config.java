@@ -1,5 +1,7 @@
 package configurations;
 
+import storage.Policy;
+
 /**
  * A singleton that holds all configurations of the server.
  */
@@ -41,6 +43,23 @@ public class Config {
     private String ISODestinationLanguage = "en";
 
     /**
+     * Configures the write/read access policy to the file system
+     * only for those information that are not considered prioritised,
+     * which are stored immediately (ex. registration info).
+     * Default: IMMEDIATELY
+     * Accepted values for this option:
+     *  - 0: IMMEDIATELY
+     *  - 1: WRITE_ON_READ
+     *  - 2: ON_SESSION_CLOSE
+     */
+    private Policy storageAccessPolicy = Policy.IMMEDIATELY;
+    /**
+     * Configures the path to be used for the storage. Use relative paths.
+     * Default: ${MODULE_WORKING_DIR}/internal
+     */
+    private String storagePath = "internal";
+
+    /**
      * Parses the command line arguments and initialise the config fields.
      * @param args an array of command line values
      */
@@ -69,6 +88,23 @@ public class Config {
                 case "-useISODestinationLang":
                     ISODestinationLanguage = rawValue;
                     break;
+               /* case "-storageThreads":
+                    int n = Integer.parseInt(rawValue);
+                    storageThreads = n > 1 ? n : storageThreads;
+                    break;*/
+                case "-useStoragePolicy":
+                    int p = Integer.parseInt(rawValue);
+                    if (p < 0 || p > 2) {
+                        System.out.println("-useStoragePolicy: please use a value between 0 and 2");
+                    } else {
+                        storageAccessPolicy = Policy.values()[p];
+                    }
+                    break;
+                case "-useStoragePath":
+                    if (!rawValue.isEmpty()) {
+                        storagePath = rawValue;
+                    }
+                    break;
                 default:
                     System.out.println("[WARNING] Unrecognised option: " + key + "\n->this option will be ignored");
             }
@@ -89,5 +125,13 @@ public class Config {
 
     public String getISODestinationLanguage() {
         return ISODestinationLanguage;
+    }
+
+    public Policy getStorageAccessPolicy() {
+        return storageAccessPolicy;
+    }
+
+    public String getStoragePath() {
+        return storagePath;
     }
 }

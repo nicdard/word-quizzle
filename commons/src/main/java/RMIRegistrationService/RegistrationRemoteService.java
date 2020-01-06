@@ -1,4 +1,7 @@
+package RMIRegistrationService;
+
 import java.rmi.Remote;
+import java.rmi.RemoteException;
 
 /**
  * Registration Service Methods
@@ -16,12 +19,12 @@ public interface RegistrationRemoteService extends Remote {
      * @return the status code of the operation indicating a successful operation
      * or an error cause
      */
-    RegistrationResponseStatusCode addUser(String nickName, String password);
+    RegistrationResponseStatusCode addUser(String nickName, String password) throws RemoteException;
 
     /**
      * Checks whether nickName is a registered nickName of WQ.
      * @param nickName
      * @return true if nickName is found, false otherwise
      */
-    boolean isNickAlreadyRegistered(String nickName);
+    boolean isAlreadyRegistered(String nickName) throws RemoteException;
 }

@@ -22,7 +22,13 @@ class MyMemoryApiTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"ciao", "codice", "nome", "bello", "virtuale"})
+    @ValueSource(strings = {
+            "teatro",
+            "spettacolo",
+            "interessante",
+            "bottiglia",
+            "acqua"
+    })
     void testTranslate(String word) throws UnavailableTranslationException {
         try {
             List<String> translations = service.translate(word);
@@ -33,5 +39,4 @@ class MyMemoryApiTest {
             System.out.println("Please review your test");
         }
     }
-
 }

@@ -1,10 +1,12 @@
+package RMIRegistrationService;
+
 /**
  * Response status codes for a registration request.
  */
-enum RegistrationResponseStatusCode {
+public enum RegistrationResponseStatusCode {
     /** The registration procedure completes successfully */
     OK,
-    /** The nickName is empty */
+    /** The nickName is null or empty */
     INVALID_NICK_ERROR,
     /** The chosen nickName is already registered to the service */
     NICK_ALREADY_REGISTERED_ERROR,
