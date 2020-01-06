@@ -49,8 +49,7 @@ public class Config {
      * Default: IMMEDIATELY
      * Accepted values for this option:
      *  - 0: IMMEDIATELY
-     *  - 1: WRITE_ON_READ
-     *  - 2: ON_SESSION_CLOSE
+     *  - 1: ON_SESSION_CLOSE
      */
     private Policy storageAccessPolicy = Policy.IMMEDIATELY;
     /**
@@ -58,6 +57,12 @@ public class Config {
      * Default: ${MODULE_WORKING_DIR}/internal
      */
     private String storagePath = "internal";
+
+    /**
+     * Configures the use of files replication for the storage.
+     * Default: false
+     */
+    private boolean enableStorageReplication = false;
 
     /**
      * Parses the command line arguments and initialise the config fields.
@@ -133,5 +138,9 @@ public class Config {
 
     public String getStoragePath() {
         return storagePath;
+    }
+
+    public boolean isEnableStorageReplication() {
+        return enableStorageReplication;
     }
 }

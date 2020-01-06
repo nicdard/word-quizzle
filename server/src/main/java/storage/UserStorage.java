@@ -26,10 +26,13 @@ class UserStorage {
     private String registrationPath;
     private String onlinePath;
 
+    private Policy policy;
+
     private static UserStorage instance;
     private UserStorage() {
         // Initialise storage directories
-        Path storagePath = Paths.get(Config.getInstance().getStoragePath());
+        Config config = Config.getInstance();
+        Path storagePath = Paths.get(config.getStoragePath());
         if (!Files.exists(storagePath)) {
             try {
                 Files.createDirectories(storagePath);
@@ -42,7 +45,7 @@ class UserStorage {
             }
         }
         // Use File.separator for portability
-        String path = Config.getInstance().getStoragePath();
+        String path = config.getStoragePath();
         this.onlinePath = String.join(File.separator,
                 path,
                 UserViews.Online.FILE
@@ -52,12 +55,13 @@ class UserStorage {
                 path,
                 UserViews.Registration.FILE
         );
+        this.policy = config.getStorageAccessPolicy();
     }
 
     public static UserStorage getInstance() {
         if (instance == null) {
             instance = new UserStorage();
-            instance.loggedInUsers = new ConcurrentHashMap<>();
+            instance.onlineUsers = new ConcurrentHashMap<>();
             instance.ongoingFriendshipRequests = new ConcurrentHashMap<>();
         }
         return instance;
@@ -66,7 +70,7 @@ class UserStorage {
     /**
      * Stores logged users by nickname
      */
-    private Map<String, User> loggedInUsers;
+    private Map<String, User> onlineUsers;
 
     /**
      * Stores friendship requests, the key is the original recipient
@@ -96,6 +100,8 @@ class UserStorage {
      * @param nickName
      */
     boolean exists(String nickName) {
+        // To avoid file scanning
+        if (this.isOnline(nickName)) return true;
         try {
             this.loadUserRegistrationInfo(nickName);
             return true;
@@ -114,14 +120,12 @@ class UserStorage {
      */
     boolean logInUser(String nickName, String password) {
         // Fail on logging in an user which is already online
-        if (this.loggedInUsers.get(nickName) != null) {
-            return false;
-        }
+        if (this.isOnline(nickName)) return false;
         try {
             User user = this.loadUserRegistrationInfo(nickName);
             if (user.getPassword().equals(password)) {
                 User userInfo = this.loadUserOnlineInfo(nickName);
-                this.loggedInUsers.put(nickName, userInfo);
+                this.onlineUsers.putIfAbsent(nickName, userInfo);
                 return true;
             } else {
                 return false;
@@ -132,26 +136,82 @@ class UserStorage {
     }
 
     /**
-     * Drops an user from the loaded users
+     * Drops an user from the loaded users. Eventually updates its records.
      *
      * @param nickName
      */
     void logOutUser(String nickName) {
-
+        User user = this.onlineUsers.remove(nickName);
+        if (this.policy.equals(Policy.ON_SESSION_CLOSE)) {
+            // Writes changes for this user to file
+            if (user.hasBeenModified()) {
+                try {
+                    JSONMapper.copyAndUpdate(
+                            this.onlinePath,
+                            user,
+                            UserViews.Online.class
+                    );
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     /**
+     * // TODO FUTURE
      * Stores the friendship request from the requester user to the
      * recipient user if both requester and recipientNick are valid
      * registered WQ users.
+     * // FIXME for now implement only project requirement
      *
      * @param requester
      * @param recipientNick
      * @return true if all conditions for a friendship request hold and the request is stored.
      */
     boolean requestFirendship(String requester, String recipientNick) {
-        return false;
+        User requesterUser = this.onlineUsers.get(requester);
+        if (requesterUser == null
+            || !this.exists(recipientNick)
+        ) {
+            return false;
+        }
+        requesterUser.addFriend(recipientNick);
+        User recipientUser = this.loadUserOnlineInfo(recipientNick);
+        recipientUser.addFriend(requester);
+        if (this.policy == Policy.IMMEDIATELY) {
+            try {
+                JSONMapper.copyAndUpdate(
+                        this.onlinePath,
+                        recipientUser,
+                        UserViews.Online.class
+                );
+                JSONMapper.copyAndUpdate(
+                        this.onlinePath,
+                        requesterUser,
+                        UserViews.Online.class
+                );
+            } catch (IOException e) {
+                e.printStackTrace();
+                return false;
+            }
+        } else if (this.policy == Policy.ON_SESSION_CLOSE
+                    && !this.isOnline(recipientNick)
+        ) {
+            try {
+                JSONMapper.copyAndUpdate(
+                        this.onlinePath,
+                        recipientUser,
+                        UserViews.Online.class
+                );
+            } catch (IOException e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+        return true;
     }
+
 
     /**
      * Sets recipientFriend and requester friendship.
@@ -161,9 +221,11 @@ class UserStorage {
      * @param recipientFriend
      * @param requester
      */
+    /*
     void acceptFriendship(String recipientFriend, String requester) {
 
     }
+    */
 
     /**
      * Returns all friends of a given user if it exists and is currently online.
@@ -175,11 +237,41 @@ class UserStorage {
     Set<String> getFriends(String nickname) throws NoSuchElementException {
         // Not using containsKey for concurrency safety,
         // really not needed in this particular case but as a good practice.
-        User user = this.loggedInUsers.get(nickname);
+        User user = this.onlineUsers.get(nickname);
         if (user != null) {
             return user.getFriends();
         }
         throw new NoSuchElementException("The user is not currently online");
+    }
+
+    /**
+     * Returns the scores of a given user if online.
+     * @param nickname
+     * @return
+     * @throws NoSuchElementException
+     */
+    int getScore(String nickname) throws NoSuchElementException {
+        User user = this.onlineUsers.get(nickname);
+        if (user != null) {
+            return user.getScore();
+        }
+        throw new NoSuchElementException("The user is not currently online");
+    }
+
+    String getOnlinePath() {
+        return onlinePath;
+    }
+
+    String getRegistrationPath() {
+        return registrationPath;
+    }
+
+    private boolean isOnline(String nickname) {
+        return this.onlineUsers.get(nickname) != null;
+    }
+
+    private boolean isOnline(User user) {
+        return this.onlineUsers.get(user.getNick()) != null;
     }
 
     private User loadUserRegistrationInfo(String nickname) throws NoSuchElementException {
@@ -187,6 +279,9 @@ class UserStorage {
     }
 
     private User loadUserOnlineInfo(String nickname) throws NoSuchElementException {
+        if (this.isOnline(nickname)) {
+            return this.onlineUsers.get(nickname);
+        }
         return this.loadUserInfo(nickname, this.onlinePath, UserViews.Online.class);
     }
 
@@ -237,13 +332,5 @@ class UserStorage {
             return false;
         }
         return true;
-    }
-
-    String getOnlinePath() {
-        return onlinePath;
-    }
-
-    String getRegistrationPath() {
-        return registrationPath;
     }
 }

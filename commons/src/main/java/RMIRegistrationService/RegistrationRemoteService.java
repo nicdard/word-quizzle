@@ -8,6 +8,11 @@ import java.rmi.RemoteException;
  */
 public interface RegistrationRemoteService extends Remote {
 
+
+    int REGISTRY_PORT = 2020;
+
+    String REGISTRY_HOST = "localhost";
+
     String REMOTE_OBJECT_NAME = "RegistrationRemoteService";
 
     /**

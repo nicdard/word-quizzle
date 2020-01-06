@@ -25,6 +25,9 @@ public class User {
     @JsonProperty("f")
     private Set<String> friends;
 
+    @JsonIgnore
+    private boolean hasBeenModified = false;
+
     /**
      * Initially an user must have nick
      * @param nick
@@ -67,10 +70,12 @@ public class User {
     }
 
     public void setScore(Integer score) {
+        this.hasBeenModified = true;
         this.score = score;
     }
 
     public void setFriends(Set<String> friends) {
+        this.hasBeenModified = true;
         this.friends = friends;
     }
 
@@ -80,7 +85,11 @@ public class User {
      * @return true if the friend was added.
      */
     public boolean addFriend(String nickFriend) {
+        this.hasBeenModified = true;
         return this.friends.add(nickFriend);
     }
 
+    public boolean hasBeenModified() {
+        return hasBeenModified;
+    }
 }

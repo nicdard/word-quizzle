@@ -1,18 +1,19 @@
 package storage.iotasks;
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import configurations.Config;
 import storage.models.User;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.NoSuchElementException;
 
@@ -52,6 +53,19 @@ public class JSONMapper {
         return objectMapper
                 .writerWithView(view)
                 .writeValueAsString(user);
+    }
+
+    /**
+     * Serializes an user to JSON accordingly to a specified view.
+     * @param user
+     * @param view
+     * @return the user as a JSON string.
+     * @throws JsonProcessingException
+     */
+    static void serializeToFile(User user, Class view, JsonGenerator jsonGenerator) throws IOException {
+        objectMapper
+                .writerWithView(view)
+                .writeValue(jsonGenerator, user);
     }
 
     /**
@@ -123,26 +137,59 @@ public class JSONMapper {
     }
 
     /**
-     * Merges two user with the same nick.
-     * @param u1
-     * @param u2
-     * @return the user instance which holds the password
-     * filled with all the fields from the other instance.
+     * Makes a copy of a file and if an user is found it replaces it.
+     * (Actually it ignores the file instance and writes the new one at last)
+     * @param filename
+     * @param user
+     * @param view
+     * @throws IOException
      */
-    static User mergeViews(User u1, User u2) {
-        if (!u1.getNick().equals(u2.getNick()))
-            throw new IllegalArgumentException("Invalid parameters, u1 and u2 should have the same nick");
-        User ret;
-        User from;
-        if (u1.getPassword() != null) {
-            ret = u1;
-            from = u2;
-        } else {
-            ret = u2;
-            from = u1;
+    public static boolean copyAndUpdate(String filename, User user, Class view) throws IOException {
+        String tempFilename = stripExtension(filename) + "_temp" + ".json";
+        Path tempPath = Paths.get(tempFilename);
+        Files.deleteIfExists(tempPath);
+        Files.createFile(tempPath);
+        JsonFactory jsonFactory = JSONMapper.objectMapper.getFactory();
+        // Opens the file and get a parser to traverse it
+        try (InputStream inputStream = Files.newInputStream(Paths.get(filename));
+             JsonParser parser = jsonFactory.createParser(inputStream);
+             OutputStream outputStream = Files.newOutputStream(tempPath);
+             JsonGenerator generator = jsonFactory.createGenerator(outputStream)
+        ) {
+            // Check the first token.
+            if (parser.nextToken() != JsonToken.START_ARRAY) {
+                throw new IllegalStateException("Expected content to be an array");
+            }
+            // Writes the Array opening token.
+            generator.writeStartArray();
+            // Iterate over the tokens until the end of the array
+            while (parser.nextToken() != JsonToken.END_ARRAY) {
+                // Get an user using Jackson data-binding
+                User parsedUser = JSONMapper.deserialize(parser, view);
+                // Do not copy the old user instance into the new file
+                if (!user.getNick().equals(parsedUser.getNick())) {
+                    JSONMapper.serializeToFile(parsedUser, view, generator);
+                }
+            }
+            // Writes the new user instance
+            JSONMapper.serializeToFile(user, view, generator);
+            // Writes closing Array token
+            generator.writeEndArray();
         }
-        ret.setScore(from.getScore());
-        ret.setFriends(from.getFriends());
-        return ret;
+        // The above resources are closed when exiting the try-with.
+        File storage = new File(filename);
+        File current = new File(tempFilename);
+        boolean hasMoved = current.renameTo(storage);
+        if (hasMoved && Config.getInstance().isEnableStorageReplication()) {
+            // Deletes the temp file
+            current.delete();
+        }
+        return true;
+    }
+
+    private static String stripExtension(final String s) {
+        return s != null && s.lastIndexOf(".") > 0
+                ? s.substring(0, s.lastIndexOf("."))
+                : s;
     }
 }

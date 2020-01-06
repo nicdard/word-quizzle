@@ -10,11 +10,6 @@ public enum Policy {
      */
     IMMEDIATELY,
     /**
-     * Use a buffer only in writing operations, flush it before reading from the storage.
-     * NOTE: may loose data and inconsistencies may occur
-     */
-    WRITE_ON_READ,
-    /**
      * Use a buffer for all the client login session, when a client logout
      * then write all information.
      */

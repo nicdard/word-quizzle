@@ -1,4 +1,5 @@
 import RMIRegistrationService.RegistrationRemoteService;
+import RMIRegistrationService.RegistrationResponseStatusCode;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -9,9 +10,6 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
 public class MainClassWQClient {
-    private static int REGISTRY_PORT = 2020;
-    private static String REGISTRY_HOST = "localhost";
-
     public static void main(String[] args) {
 
         System.out.println("[Client] Starting client");
@@ -38,9 +36,36 @@ public class MainClassWQClient {
                         System.out.println();
                         break;
                     case "register":
-                        Registry registry = LocateRegistry.getRegistry(REGISTRY_HOST, REGISTRY_PORT);
+                        Registry registry = LocateRegistry.getRegistry(
+                                RegistrationRemoteService.REGISTRY_HOST,
+                                RegistrationRemoteService.REGISTRY_PORT);
                         RegistrationRemoteService registrationService = (RegistrationRemoteService) registry.lookup(RegistrationRemoteService.REMOTE_OBJECT_NAME);
-                        System.out.println("Remote registration service found");
+                        // 1. Get the new nickname
+                        System.out.println("Please insert a nickName or nothing to exit: ");
+                        String nickName = br.readLine();
+                        // Get the password
+                        System.out.println("Please insert a valid password (at least 4 character): ");
+                        String password = br.readLine();
+                        RegistrationResponseStatusCode responseCode =
+                                registrationService.addUser(nickName, password);
+                        switch (responseCode) {
+                            case OK:
+                                System.out.println("You successfully complete the registration to WQ!");
+                                break;
+                            case INVALID_NICK_ERROR:
+                                System.out.println("The provided nick is invalid");
+                                break;
+                            case INVALID_PASSWORD_ERROR:
+                                System.out.println("The password must be at least 4 character long");
+                                break;
+                            case NICK_ALREADY_REGISTERED_ERROR:
+                                System.out.println("The nickname is already registered to WQ :(");
+                                break;
+                            case INTERNAL_ERROR:
+                            default:
+                                System.out.println("The server has experienced an internal error");
+                                break;
+                        }
                         break;
                     case "login":
                         System.out.println("Login called");

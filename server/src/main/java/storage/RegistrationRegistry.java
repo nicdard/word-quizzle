@@ -2,8 +2,6 @@ package storage;
 
 import RMIRegistrationService.RegistrationRemoteService;
 import RMIRegistrationService.RegistrationResponseStatusCode;
-import storage.models.User;
-import storage.models.UserViews;
 
 import java.rmi.RemoteException;
 
