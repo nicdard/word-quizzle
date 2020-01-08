@@ -15,7 +15,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 /**
  * Defines an unique objectMapper to serialize and deserialize JSON
@@ -108,7 +108,6 @@ public class JSONMapper {
 
     /**
      * Search an user (by nickName) in a JSONArray file and retrieve it
-     * // FIXME for better performances it can be done with Jackson Streaming API only
      * @param filename
      * @param nick
      * @param view
@@ -136,6 +135,37 @@ public class JSONMapper {
         }
     }
 
+
+    /**
+     * Search users for a set of users' nickname and retrieves them.
+     * @param filename
+     * @param nicks
+     * @param view
+     * @return a set of user, it can be empty
+     */
+    public static TreeSet<User> findAndGet(String filename, Set<String> nicks, Class view) throws IOException {
+        JsonFactory jsonFactory = JSONMapper.objectMapper.getFactory();
+        // Opens the file and get a parser to traverse it
+        try (InputStream inputStream = Files.newInputStream(Paths.get(filename));
+             JsonParser parser = jsonFactory.createParser(inputStream)
+        ) {
+            // Check the first token
+            if (parser.nextToken() != JsonToken.START_ARRAY) {
+                throw new IllegalStateException("Expected content to be an array");
+            }
+            TreeSet<User> users = new TreeSet<>();
+            // Iterate over the tokens until the end of the array
+            while (parser.nextToken() != JsonToken.END_ARRAY) {
+                // Get an user using Jackson data-binding
+                User user = JSONMapper.deserialize(parser, view);
+                if (nicks.contains(user.getNick())) {
+                    users.add(user);
+                }
+            }
+            return users;
+        }
+    }
+
     /**
      * Makes a copy of a file and if an user is found it replaces it.
      * (Actually it ignores the file instance and writes the new one at last)
@@ -145,6 +175,21 @@ public class JSONMapper {
      * @throws IOException
      */
     public static boolean copyAndUpdate(String filename, User user, Class view) throws IOException {
+        // To avoid code replication.
+        return copyAndUpdate(filename, Collections.singleton(user), view);
+    }
+
+    /**
+     * The same function as above but handles a set of users.
+     * Makes a copy of a file and if an user is found it replaces it with the provided instance,
+     * if some users are not in the file already it adds them.
+     * (Actually it ignores the file instance and writes the new one at last)
+     * @param filename
+     * @param users
+     * @param view
+     * @throws IOException
+     */
+    public static boolean copyAndUpdate(String filename, Set<User> users, Class view) throws IOException {
         String tempFilename = stripExtension(filename) + "_temp" + ".json";
         Path tempPath = Paths.get(tempFilename);
         Files.deleteIfExists(tempPath);
@@ -167,12 +212,14 @@ public class JSONMapper {
                 // Get an user using Jackson data-binding
                 User parsedUser = JSONMapper.deserialize(parser, view);
                 // Do not copy the old user instance into the new file
-                if (!user.getNick().equals(parsedUser.getNick())) {
+                if (users.contains(parsedUser)) {
                     JSONMapper.serializeToFile(parsedUser, view, generator);
                 }
             }
             // Writes the new user instance
-            JSONMapper.serializeToFile(user, view, generator);
+            for (User user : users) {
+                JSONMapper.serializeToFile(user, view, generator);
+            }
             // Writes closing Array token
             generator.writeEndArray();
         }

@@ -110,6 +110,8 @@ public class Config {
                         storagePath = rawValue;
                     }
                     break;
+                case "-useStorageReplication":
+                    this.enableStorageReplication = Boolean.parseBoolean(rawValue);
                 default:
                     System.out.println("[WARNING] Unrecognised option: " + key + "\n->this option will be ignored");
             }

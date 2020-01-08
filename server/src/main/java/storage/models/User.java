@@ -7,7 +7,12 @@ import com.fasterxml.jackson.annotation.JsonView;
 import java.util.HashSet;
 import java.util.Set;
 
-public class User {
+/**
+ * The type of a WQ user.
+ * A score based order and a lexicographical nickname equality notions
+ * are defined on the elements of this class.
+ */
+public class User implements Comparable<User> {
 
     @JsonView({UserViews.Registration.class, UserViews.Online.class})
     @JsonProperty("n")
@@ -91,5 +96,24 @@ public class User {
 
     public boolean hasBeenModified() {
         return hasBeenModified;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == this) return true;
+        if (o == null || o.getClass() != this.getClass())
+            return false;
+        User user = (User) o;
+        return this.getNick().equals(user.getNick());
+    }
+
+    /**
+     * Compares two user by score.
+     * @param user
+     * @return
+     */
+    @Override
+    public int compareTo(User user) {
+        return this.getScore() - user.getScore();
     }
 }

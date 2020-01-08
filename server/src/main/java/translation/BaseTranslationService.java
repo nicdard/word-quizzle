@@ -32,8 +32,10 @@ public abstract class BaseTranslationService implements TranslationService {
     /**
      * Builds and configures a chain of TranslationServices according to the global Config.
      * @return the head of the TranslationServices chain
+     * NOTE: In multithreaded application don't lazy load the chain or,
+     * if needed, make getInstance synchronized
      */
-    synchronized static TranslationService getChain() {
+    static TranslationService getChain() {
         if (chain == null) {
             Config config = Config.getInstance();
             // This is the third-party service used to translate the words.

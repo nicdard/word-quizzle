@@ -33,7 +33,7 @@ public class JSONUserAppender implements Runnable {
     public void run() {
         String serializedUser;
         try {
-            serializedUser = JSONMapper.serialize(user);
+            serializedUser = JSONMapper.serialize(user, view);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
             throw new RuntimeException("Unable to serialize: " + this.user);

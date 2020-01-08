@@ -10,6 +10,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * it forward the request to a "lower level" TranslationService
  * (either cache or primary service), therefor it isn't meant
  * to be used as the primary TranslationService.
+ *
+ * NOTE: In multithreaded application don't lazy load this class or,
+ * if needed, make getInstance synchronized
  */
 public class TranslationsPool extends BaseTranslationService {
 
@@ -28,7 +31,7 @@ public class TranslationsPool extends BaseTranslationService {
         this.pool = new ConcurrentHashMap<>();
     }
 
-    synchronized static TranslationsPool getInstance(long maximumSize) {
+    static TranslationsPool getInstance(long maximumSize) {
         if (instance == null) {
             instance = new TranslationsPool(maximumSize);
         }

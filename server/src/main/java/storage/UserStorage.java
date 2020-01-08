@@ -11,15 +11,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 /**
- *
+ * This is the store mechani
  */
 class UserStorage {
 
@@ -62,7 +60,7 @@ class UserStorage {
         if (instance == null) {
             instance = new UserStorage();
             instance.onlineUsers = new ConcurrentHashMap<>();
-            instance.ongoingFriendshipRequests = new ConcurrentHashMap<>();
+            //instance.ongoingFriendshipRequests = new ConcurrentHashMap<>();
         }
         return instance;
     }
@@ -77,8 +75,9 @@ class UserStorage {
      * and the value is the original sender of the request, this way
      * we provide an efficient way to send the request when the recipient
      * logsIn.
+     * // TODO FUTURE
      */
-    private Map<String, String> ongoingFriendshipRequests;
+    // private Map<String, String> ongoingFriendshipRequests;
 
     /**
      * Registers an user to WQ. IMMEDIATELY writes the new user to the storage file.
@@ -152,6 +151,7 @@ class UserStorage {
                             UserViews.Online.class
                     );
                 } catch (IOException e) {
+                    // It has some data lost
                     e.printStackTrace();
                 }
             }
@@ -179,29 +179,22 @@ class UserStorage {
         requesterUser.addFriend(recipientNick);
         User recipientUser = this.loadUserOnlineInfo(recipientNick);
         recipientUser.addFriend(requester);
+        Set<User> updates = new HashSet<>();
+        // This section implements the storage updates policy
         if (this.policy == Policy.IMMEDIATELY) {
-            try {
-                JSONMapper.copyAndUpdate(
-                        this.onlinePath,
-                        recipientUser,
-                        UserViews.Online.class
-                );
-                JSONMapper.copyAndUpdate(
-                        this.onlinePath,
-                        requesterUser,
-                        UserViews.Online.class
-                );
-            } catch (IOException e) {
-                e.printStackTrace();
-                return false;
-            }
+            updates.add(recipientUser);
+            updates.add(requesterUser);
         } else if (this.policy == Policy.ON_SESSION_CLOSE
                     && !this.isOnline(recipientNick)
         ) {
+            updates.add(recipientUser);
+        }
+        // In general do not add anything to the collection
+        if (!updates.isEmpty()) {
             try {
                 JSONMapper.copyAndUpdate(
                         this.onlinePath,
-                        recipientUser,
+                        updates,
                         UserViews.Online.class
                 );
             } catch (IOException e) {
@@ -223,7 +216,7 @@ class UserStorage {
      */
     /*
     void acceptFriendship(String recipientFriend, String requester) {
-
+    // TODO FUTURE
     }
     */
 
@@ -258,6 +251,26 @@ class UserStorage {
         throw new NoSuchElementException("The user is not currently online");
     }
 
+    /**
+     * Calculates the ranking list of a given user with his friends.
+     * @param nickname
+     * @return
+     * @throws IOException
+     */
+    TreeSet<User> getRankingList(String nickname) throws IOException {
+        User user = this.onlineUsers.get(nickname);
+        if (user == null) {
+            throw new IllegalStateException("An user must be online to request the score ranking list");
+        }
+        TreeSet<User> rankingList = JSONMapper.findAndGet(
+                this.onlinePath,
+                user.getFriends(),
+                UserViews.Online.class
+        );
+        rankingList.add(user);
+        return rankingList;
+    }
+
     String getOnlinePath() {
         return onlinePath;
     }
@@ -266,6 +279,10 @@ class UserStorage {
         return registrationPath;
     }
 
+    /**
+     * @param nickname
+     * @return true if the user is online.
+     */
     private boolean isOnline(String nickname) {
         return this.onlineUsers.get(nickname) != null;
     }
@@ -293,7 +310,6 @@ class UserStorage {
      * @return return the user parsed from json with the given view
      * @throws NoSuchElementException
      */
-    // FIXME Implement readWrite lock mechanism to allow multiple readers at once
     synchronized private User loadUserInfo(String nickname, String filename, Class view) throws NoSuchElementException {
         try {
             return JSONMapper.findAndGet(filename, nickname, view);
