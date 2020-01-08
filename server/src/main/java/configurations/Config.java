@@ -2,6 +2,8 @@ package configurations;
 
 import storage.Policy;
 
+import java.io.File;
+
 /**
  * A singleton that holds all configurations of the server.
  */
@@ -65,6 +67,20 @@ public class Config {
     private boolean enableStorageReplication = false;
 
     /**
+     * Configures dictionary file path.
+     * Default: ${MODULE_WORKING_DIR}/src/main/resources/dictionary.txt
+     */
+    private String dictionaryFilePath = String.join(File.separator,
+            "src", "main", "resources", "dictionary.txt"
+    );
+
+    /**
+     * Configures the number of words to translate in a challenge.
+     * Default: 20
+     */
+    private int wordsForChallnge = 20;
+
+    /**
      * Parses the command line arguments and initialise the config fields.
      * @param args an array of command line values
      */
@@ -112,6 +128,13 @@ public class Config {
                     break;
                 case "-useStorageReplication":
                     this.enableStorageReplication = Boolean.parseBoolean(rawValue);
+                    break;
+                case "-useDictionary":
+                    this.dictionaryFilePath = rawValue;
+                    break;
+                case "-wordsForChallenge":
+                    this.wordsForChallnge = Integer.parseInt(rawValue);
+                    break;
                 default:
                     System.out.println("[WARNING] Unrecognised option: " + key + "\n->this option will be ignored");
             }
@@ -144,5 +167,9 @@ public class Config {
 
     public boolean isEnableStorageReplication() {
         return enableStorageReplication;
+    }
+
+    public String getDictionaryFilePath() {
+        return dictionaryFilePath;
     }
 }

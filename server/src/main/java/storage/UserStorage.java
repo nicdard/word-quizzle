@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
 /**
- * This is the store mechani
+ * Manages the online users info and the disk files related to all WQ users.
  */
 class UserStorage {
 
@@ -94,8 +94,7 @@ class UserStorage {
     }
 
     /**
-     * Checks if nickName is registered to WQ
-     *
+     * Checks if nickName is registered to WQ.
      * @param nickName
      */
     boolean exists(String nickName) {
@@ -111,8 +110,7 @@ class UserStorage {
 
     /**
      * Checks if nickName exists and if the password is correct,
-     * then load all the information from file (scores and friends).
-     *
+     * then loads all the information from file (scores and friends).
      * @param nickName
      * @param password
      * @return true if the user is correctly logged in
@@ -136,7 +134,6 @@ class UserStorage {
 
     /**
      * Drops an user from the loaded users. Eventually updates its records.
-     *
      * @param nickName
      */
     void logOutUser(String nickName) {
