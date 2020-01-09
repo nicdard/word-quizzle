@@ -107,7 +107,10 @@ public class JSONMapper {
     }
 
     /**
-     * Search an user (by nickName) in a JSONArray file and retrieve it
+     * Search an user (by nickName) in a JSONArray file and retrieve it.
+     * NOTE: It could have been written using the homologous function below
+     * wrapping nick in a singletonSet, but this way it is more efficient on
+     * large files.
      * @param filename
      * @param nick
      * @param view
@@ -238,7 +241,7 @@ public class JSONMapper {
         File storage = new File(filename);
         File current = new File(tempFilename);
         boolean hasMoved = current.renameTo(storage);
-        if (hasMoved && Config.getInstance().isEnableStorageReplication()) {
+        if (hasMoved && !Config.getInstance().isEnableStorageReplication()) {
             // Deletes the temp file
             current.delete();
         }

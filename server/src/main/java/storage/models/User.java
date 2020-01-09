@@ -33,6 +33,8 @@ public class User implements Comparable<User> {
     @JsonIgnore
     private boolean hasBeenModified = false;
 
+    public User() {}
+
     /**
      * Initially an user must have nick
      * @param nick

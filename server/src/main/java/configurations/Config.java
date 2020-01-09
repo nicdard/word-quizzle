@@ -78,7 +78,7 @@ public class Config {
      * Configures the number of words to translate in a challenge.
      * Default: 20
      */
-    private int wordsForChallnge = 20;
+    private int wordsForChallenge = 20;
 
     /**
      * Parses the command line arguments and initialise the config fields.
@@ -115,7 +115,7 @@ public class Config {
                     break;*/
                 case "-useStoragePolicy":
                     int p = Integer.parseInt(rawValue);
-                    if (p < 0 || p > 2) {
+                    if (p < 0 || p > 1) {
                         System.out.println("-useStoragePolicy: please use a value between 0 and 2");
                     } else {
                         storageAccessPolicy = Policy.values()[p];
@@ -133,7 +133,7 @@ public class Config {
                     this.dictionaryFilePath = rawValue;
                     break;
                 case "-wordsForChallenge":
-                    this.wordsForChallnge = Integer.parseInt(rawValue);
+                    this.wordsForChallenge = Integer.parseInt(rawValue);
                     break;
                 default:
                     System.out.println("[WARNING] Unrecognised option: " + key + "\n->this option will be ignored");
@@ -171,5 +171,9 @@ public class Config {
 
     public String getDictionaryFilePath() {
         return dictionaryFilePath;
+    }
+
+    public int getWordsForChallenge() {
+        return wordsForChallenge;
     }
 }
