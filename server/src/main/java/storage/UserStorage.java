@@ -15,16 +15,37 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Manages the online users info and the disk files related to all WQ users.
  */
 class UserStorage {
 
+    /**
+     * Paths for the db files.
+     */
     private String registrationPath;
     private String onlinePath;
 
+    /**
+     * The file accessing policy
+     */
     private Policy policy;
+
+    /**
+     * Stores logged users by nickname
+     */
+    private Map<String, User> onlineUsers;
+
+    /**
+     * Locks for updating and reading db files.
+     */
+    private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock(true);
+    private final Lock readLock = readWriteLock.readLock();
+    private final Lock writeLock = readWriteLock.writeLock();
 
     private static UserStorage instance;
     private UserStorage() {
@@ -66,23 +87,10 @@ class UserStorage {
     }
 
     /**
-     * Stores logged users by nickname
-     */
-    private Map<String, User> onlineUsers;
-
-    /**
-     * Stores friendship requests, the key is the original recipient
-     * and the value is the original sender of the request, this way
-     * we provide an efficient way to send the request when the recipient
-     * logsIn.
-     * // TODO FUTURE
-     */
-    // private Map<String, String> ongoingFriendshipRequests;
-
-    /**
      * Registers an user to WQ. IMMEDIATELY writes the new user to the storage file.
      * NOTE: Doesn't checks for the registration contract, checks only that the
      * representation invariant of this class holds (nick and password not null and not empty)
+     * The concurrency management is delegated to the caller (@link RegistrationRegistry)
      */
     boolean register(String nickname, String password) {
         try {
@@ -137,10 +145,12 @@ class UserStorage {
      * @param nickName
      */
     void logOutUser(String nickName) {
+        if (!this.isOnline(nickName)) return;
         User user = this.onlineUsers.remove(nickName);
         if (this.policy.equals(Policy.ON_SESSION_CLOSE)) {
             // Writes changes for this user to file
             if (user.hasBeenModified()) {
+                this.writeLock.lock();
                 try {
                     JSONMapper.copyAndUpdate(
                             this.onlinePath,
@@ -150,23 +160,22 @@ class UserStorage {
                 } catch (IOException e) {
                     // It has some data lost
                     e.printStackTrace();
+                } finally {
+                    this.writeLock.unlock();
                 }
             }
         }
     }
 
     /**
-     * // TODO FUTURE
-     * Stores the friendship request from the requester user to the
+     * Stores the friendship between the requester user to the
      * recipient user if both requester and recipientNick are valid
      * registered WQ users.
-     * // FIXME for now implement only project requirement
-     *
      * @param requester
      * @param recipientNick
      * @return true if all conditions for a friendship request hold and the request is stored.
      */
-    boolean requestFirendship(String requester, String recipientNick) {
+    boolean requestFriendship(String requester, String recipientNick) {
         User requesterUser = this.onlineUsers.get(requester);
         if (requesterUser == null
             || !this.exists(recipientNick)
@@ -176,7 +185,7 @@ class UserStorage {
         requesterUser.addFriend(recipientNick);
         User recipientUser = this.loadUserOnlineInfo(recipientNick);
         recipientUser.addFriend(requester);
-        Set<User> updates = new HashSet<>();
+        List<User> updates = new ArrayList<>(2);
         // This section implements the storage updates policy
         if (this.policy == Policy.IMMEDIATELY) {
             updates.add(recipientUser);
@@ -188,6 +197,7 @@ class UserStorage {
         }
         // In general do not add anything to the collection
         if (!updates.isEmpty()) {
+            this.writeLock.lock();
             try {
                 JSONMapper.copyAndUpdate(
                         this.onlinePath,
@@ -204,22 +214,7 @@ class UserStorage {
 
 
     /**
-     * Sets recipientFriend and requester friendship.
-     * Accordingly to the chosen storage policy, will at some point
-     * write the information to the filesystem
-     *
-     * @param recipientFriend
-     * @param requester
-     */
-    /*
-    void acceptFriendship(String recipientFriend, String requester) {
-    // TODO FUTURE
-    }
-    */
-
-    /**
      * Returns all friends of a given user if it exists and is currently online.
-     *
      * @param nickname
      * @return the sets of friends' nicks of the user.
      * @throws NoSuchElementException if the user is not online.
@@ -283,20 +278,33 @@ class UserStorage {
     private boolean isOnline(String nickname) {
         return this.onlineUsers.get(nickname) != null;
     }
-
+    /**
+     * @param user
+     * @return true if the user is online.
+     */
     private boolean isOnline(User user) {
-        return this.onlineUsers.get(user.getNick()) != null;
+        return this.isOnline(user.getNick());
     }
 
     private User loadUserRegistrationInfo(String nickname) throws NoSuchElementException {
-        return this.loadUserInfo(nickname, this.registrationPath, UserViews.Registration.class);
+        this.readLock.lock();
+        try {
+            return this.loadUserInfo(nickname, this.registrationPath, UserViews.Registration.class);
+        } finally {
+            this.readLock.unlock();
+        }
     }
 
     private User loadUserOnlineInfo(String nickname) throws NoSuchElementException {
         if (this.isOnline(nickname)) {
             return this.onlineUsers.get(nickname);
         }
-        return this.loadUserInfo(nickname, this.onlinePath, UserViews.Online.class);
+        this.readLock.lock();
+        try {
+            return this.loadUserInfo(nickname, this.onlinePath, UserViews.Online.class);
+        } finally {
+            readLock.unlock();
+        }
     }
 
     /**
@@ -307,7 +315,7 @@ class UserStorage {
      * @return return the user parsed from json with the given view
      * @throws NoSuchElementException
      */
-    synchronized private User loadUserInfo(String nickname, String filename, Class view) throws NoSuchElementException {
+    private User loadUserInfo(String nickname, String filename, Class view) throws NoSuchElementException {
         try {
             return JSONMapper.findAndGet(filename, nickname, view);
         } catch (IOException e) {
@@ -324,26 +332,31 @@ class UserStorage {
      * Appends concurrently an user to all storage files,
      * doesn't check if the user exists already
      */
-    synchronized private boolean append(User user) {
-        CompletableFuture<Void> registrationAppend = CompletableFuture.runAsync(
-                new JSONUserAppender(this.registrationPath,
-                        user,
-                        UserViews.Registration.class
-                )
-        );
-        CompletableFuture<Void> onlineAppend = CompletableFuture.runAsync(
-                new JSONUserAppender(this.onlinePath,
-                        user,
-                        UserViews.Online.class
-                )
-        );
+    private boolean append(User user) {
+        this.writeLock.lock();
         try {
-            // Waits for both tasks to complete
-            CompletableFuture.allOf(registrationAppend, onlineAppend).get();
-        } catch (RuntimeException | InterruptedException | ExecutionException e) {
-            e.printStackTrace();
-            return false;
+            CompletableFuture<Void> registrationAppend = CompletableFuture.runAsync(
+                    new JSONUserAppender(this.registrationPath,
+                            user,
+                            UserViews.Registration.class
+                    )
+            );
+            CompletableFuture<Void> onlineAppend = CompletableFuture.runAsync(
+                    new JSONUserAppender(this.onlinePath,
+                            user,
+                            UserViews.Online.class
+                    )
+            );
+            try {
+                // Waits for both tasks to complete
+                CompletableFuture.allOf(registrationAppend, onlineAppend).get();
+                return true;
+            } catch (RuntimeException | InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+                return false;
+            }
+        } finally {
+            this.writeLock.unlock();
         }
-        return true;
     }
 }

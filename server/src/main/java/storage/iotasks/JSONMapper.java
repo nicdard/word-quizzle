@@ -176,7 +176,7 @@ public class JSONMapper {
      */
     public static boolean copyAndUpdate(String filename, User user, Class view) throws IOException {
         // To avoid code replication.
-        return copyAndUpdate(filename, Collections.singleton(user), view);
+        return copyAndUpdate(filename, Collections.singletonList(user), view);
     }
 
     /**
@@ -189,7 +189,7 @@ public class JSONMapper {
      * @param view
      * @throws IOException
      */
-    public static boolean copyAndUpdate(String filename, Set<User> users, Class view) throws IOException {
+    public static boolean copyAndUpdate(String filename, List<User> users, Class view) throws IOException {
         String tempFilename = stripExtension(filename) + "_temp" + ".json";
         Path tempPath = Paths.get(tempFilename);
         Files.deleteIfExists(tempPath);
@@ -207,13 +207,24 @@ public class JSONMapper {
             }
             // Writes the Array opening token.
             generator.writeStartArray();
+            Set<User> updates = new HashSet<>();
             // Iterate over the tokens until the end of the array
             while (parser.nextToken() != JsonToken.END_ARRAY) {
                 // Get an user using Jackson data-binding
                 User parsedUser = JSONMapper.deserialize(parser, view);
                 // Do not copy the old user instance into the new file
-                if (users.contains(parsedUser)) {
+                if (!users.contains(parsedUser)) {
+                    // Immediately copy only those that are not updated
                     JSONMapper.serializeToFile(parsedUser, view, generator);
+                } else {
+                    // Merges the two objects
+                    User update = users.get(users.indexOf(parsedUser));
+                    update.addFriends(parsedUser.getFriends());
+                    // NOTE: it can not happen that two non sequential score values
+                    // are written for the same user.
+                    if (update.getScore() < parsedUser.getScore()) {
+                        update.setScore(parsedUser.getScore());
+                    }
                 }
             }
             // Writes the new user instance

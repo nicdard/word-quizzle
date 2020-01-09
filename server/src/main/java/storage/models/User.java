@@ -94,6 +94,19 @@ public class User implements Comparable<User> {
         return this.friends.add(nickFriend);
     }
 
+    /**
+     * Adds friends to the user's set.
+     * @param nicks
+     */
+    public boolean addFriends(Set<String> nicks) {
+        this.hasBeenModified = true;
+        return this.friends.addAll(nicks);
+    }
+
+    /**
+     * @return true if the user has been modified
+     * (score updating or friend additions happened)
+     */
     public boolean hasBeenModified() {
         return hasBeenModified;
     }
