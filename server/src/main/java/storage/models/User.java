@@ -1,5 +1,6 @@
 package storage.models;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonView;
@@ -12,6 +13,11 @@ import java.util.Set;
  * A score based order and a lexicographical nickname equality notions
  * are defined on the elements of this class.
  */
+@JsonAutoDetect(
+        fieldVisibility = JsonAutoDetect.Visibility.ANY,
+        getterVisibility = JsonAutoDetect.Visibility.NONE,
+        setterVisibility = JsonAutoDetect.Visibility.NONE
+) // Do not invoke getters and setter while deserializing JSON
 public class User implements Comparable<User> {
 
     @JsonView({UserViews.Registration.class, UserViews.Online.class})
@@ -129,6 +135,9 @@ public class User implements Comparable<User> {
      */
     @Override
     public int compareTo(User user) {
-        return this.getScore() - user.getScore();
+        int difference = this.getScore() - user.getScore();
+        return difference != 0
+                ? difference
+                : this.getNick().compareTo(user.getNick());
     }
 }

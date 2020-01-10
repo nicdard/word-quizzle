@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import configurations.Config;
 import storage.models.User;
 
 import java.io.File;
@@ -210,7 +209,6 @@ public class JSONMapper {
             }
             // Writes the Array opening token.
             generator.writeStartArray();
-            Set<User> updates = new HashSet<>();
             // Iterate over the tokens until the end of the array
             while (parser.nextToken() != JsonToken.END_ARRAY) {
                 // Get an user using Jackson data-binding
@@ -230,7 +228,7 @@ public class JSONMapper {
                     }
                 }
             }
-            // Writes the new user instance
+            // Writes the merged user instances
             for (User user : users) {
                 JSONMapper.serializeToFile(user, view, generator);
             }
@@ -240,12 +238,7 @@ public class JSONMapper {
         // The above resources are closed when exiting the try-with.
         File storage = new File(filename);
         File current = new File(tempFilename);
-        boolean hasMoved = current.renameTo(storage);
-        if (hasMoved && !Config.getInstance().isEnableStorageReplication()) {
-            // Deletes the temp file
-            current.delete();
-        }
-        return true;
+        return current.renameTo(storage);
     }
 
     private static String stripExtension(final String s) {

@@ -1,9 +1,7 @@
 package storage;
 
 import configurations.Config;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import storage.iotasks.JSONMapper;
 import storage.models.User;
 import storage.models.UserViews;
@@ -13,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class userStorageTest {
 
     private static UserStorage userStorage;
@@ -47,6 +46,7 @@ public class userStorageTest {
     }
 
     @Test
+    @Order(2)
     void testModifyOnline12notLoaded3() throws IOException {
         Assertions.assertTrue(userStorage.register("user3", "33333"));
         // Makes them all friends, but it should update only user 3
@@ -68,5 +68,13 @@ public class userStorageTest {
         userStorage.logOutUser("user2");
         user1 = JSONMapper.findAndGet(userStorage.getOnlinePath(), "user1", UserViews.Online.class);
         Assertions.assertEquals(expected1Friends, user1.getFriends());
+    }
+
+    @Test
+    @Order(3)
+    void testRankingList() throws IOException {
+        Assertions.assertTrue(userStorage.logInUser("user1", "11111"));
+        Assertions.assertEquals(3, userStorage.getRankingList("user1").size());
+        userStorage.logOutUser("user1");
     }
 }

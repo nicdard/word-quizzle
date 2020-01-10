@@ -61,12 +61,6 @@ public class Config {
     private String storagePath = "internal";
 
     /**
-     * Configures the use of files replication for the storage.
-     * Default: false
-     */
-    private boolean enableStorageReplication = false;
-
-    /**
      * Configures dictionary file path.
      * Default: ${MODULE_WORKING_DIR}/src/main/resources/dictionary.txt
      */
@@ -126,9 +120,6 @@ public class Config {
                         storagePath = rawValue;
                     }
                     break;
-                case "-useStorageReplication":
-                    this.enableStorageReplication = Boolean.parseBoolean(rawValue);
-                    break;
                 case "-useDictionary":
                     this.dictionaryFilePath = rawValue;
                     break;
@@ -163,10 +154,6 @@ public class Config {
 
     public String getStoragePath() {
         return storagePath;
-    }
-
-    public boolean isEnableStorageReplication() {
-        return enableStorageReplication;
     }
 
     public String getDictionaryFilePath() {
