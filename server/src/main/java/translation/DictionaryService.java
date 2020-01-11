@@ -31,7 +31,9 @@ public class DictionaryService {
      */
     private Random generator;
 
-    private static DictionaryService instance;
+    /** The singleton instance */
+    private static DictionaryService instance = getInstance();
+
     private DictionaryService() throws IOException {
         this.words = new Vector<>();
         // Loads words from disk
@@ -40,6 +42,7 @@ public class DictionaryService {
         ));
         this.generator = new Random(System.currentTimeMillis());
     }
+
     public static DictionaryService getInstance() {
         if (instance == null) {
             try {

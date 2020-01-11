@@ -13,7 +13,10 @@ import java.util.Locale;
  */
 public abstract class BaseTranslationService implements TranslationService {
 
-    private static TranslationService chain;
+    /** The chained translation service to be used according to the configs
+     *  NOTE: The singletons used in the chain are not lazy loaded.
+     * */
+    private static TranslationService chain = BaseTranslationService.getChain();
 
     /** The next request handler */
     private TranslationService next;
