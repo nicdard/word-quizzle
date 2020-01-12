@@ -1,6 +1,8 @@
 package protocol;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.List;
 
 
 /**
@@ -38,7 +40,7 @@ public class WQPacket {
      * @param opCode
      * @param body
      */
-    WQPacket(OperationCode opCode, byte[] body) {
+    public WQPacket(OperationCode opCode, byte[] body) {
         if (opCode == null || body == null)
             throw new IllegalArgumentException("Invalid opCode or body");
         this.opCode = opCode;
@@ -50,7 +52,7 @@ public class WQPacket {
      * @param opCode
      * @param body
      */
-    WQPacket(OperationCode opCode, String body) {
+    public WQPacket(OperationCode opCode, String body) {
         if (opCode == null || body == null)
             throw new IllegalArgumentException("Invalid opCode or body");
         this.opCode = opCode;
@@ -74,15 +76,18 @@ public class WQPacket {
         return this.getBody().split(" ");
     }
 
-    /**
-     * @return a byte array containing the packet
-     */
-    public byte[] toBytes() {
+    public ByteBuffer toByteBuffer() {
         ByteBuffer byteBuffer = ByteBuffer.allocate(this.totalLength);
         byteBuffer.put(OperationCode.toOneByte(this.opCode));
         byteBuffer.putInt(this.totalLength);
         byteBuffer.put(this.body);
-        return byteBuffer.array();
+        return byteBuffer;
+    }
+    /**
+     * @return a byte array containing the packet
+     */
+    public byte[] toBytes() {
+        return this.toByteBuffer().array();
     }
 
     /**
@@ -102,5 +107,54 @@ public class WQPacket {
             throw new IllegalStateException("Invalid packet parsing, bytes differ");
         }
         return wqPacket;
+    }
+
+    public static WQPacket fromBytes(ByteBuffer ...packetBytes) {
+        return WQPacket.fromBytes(concat(packetBytes));
+    }
+
+    public static WQPacket fromBytes(List<ByteBuffer> packetBytes) {
+        return WQPacket.fromBytes(concat(packetBytes));
+    }
+
+    /**
+     * Concatenates one or more byte buffers to one large buffer. The combined
+     * size of all buffers must not exceed {@link java.lang.Integer#MAX_VALUE}.
+     * @param bbs list of byte buffers to combine
+     * @return byte buffer containing the combined content of the supplied byte
+     *         buffers
+     */
+    private static ByteBuffer concat(List<ByteBuffer> bbs) {
+        long length = 0;
+        // get amount of remaining bytes from all buffers
+        for (ByteBuffer bb : bbs) {
+            bb.rewind();
+            length += bb.remaining();
+        }
+        if (length > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Buffers are too large for concatenation");
+        }
+        if (length == 0) {
+            return ByteBuffer.allocate(0);
+        }
+        ByteBuffer bbNew = ByteBuffer.allocateDirect((int) length);
+        // put all buffers from list
+        for (ByteBuffer bb : bbs) {
+            bb.rewind();
+            bbNew.put(bb);
+        }
+        bbNew.rewind();
+        return bbNew;
+    }
+
+    /**
+     * Concatenates one or more byte buffers to one large buffer. The combined
+     * size of all buffers must not exceed {@link java.lang.Integer#MAX_VALUE}.
+     * @param bb one or more byte buffers to combine
+     * @return byte buffer containing the combined content of the supplied byte
+     *         buffers
+     */
+    private static ByteBuffer concat(ByteBuffer ...bb) {
+        return concat(Arrays.asList(bb));
     }
 }

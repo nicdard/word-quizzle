@@ -51,9 +51,9 @@ public class userStorageTest {
         Assertions.assertTrue(userStorage.register("user3", "33333"));
         // Makes them all friends, but it should update only user 3
         // because 1 and 2 are online (accordingly to the policy).
-        userStorage.requestFriendship("user1", "user2");
-        userStorage.requestFriendship("user1", "user3");
-        userStorage.requestFriendship("user2", "user3");
+        userStorage.addFriend("user1", "user2");
+        userStorage.addFriend("user1", "user3");
+        userStorage.addFriend("user2", "user3");
         // Verifies user 3 updated and 1 and 2 not yet.
         User user3 = JSONMapper.findAndGet(userStorage.getOnlinePath(), "user3", UserViews.Online.class);
         Set<String> expectedJSON3Friends = new HashSet<>(Arrays.asList("user1", "user2"));

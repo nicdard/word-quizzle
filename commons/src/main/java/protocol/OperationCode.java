@@ -9,12 +9,13 @@ public enum OperationCode {
     LOGIN,
     LOGOUT,
     ADD_FRIEND,
-    GET_FRIEND,
+    GET_FRIENDS,
     REQUEST_CHALLENGE,
     GET_SCORE,
     GET_RANKING,
     // Server requests
     FORWARD_CHALLENGE,
+    ENTERING_CHALLENGE,
     ASK_WORD;
 
     private static final OperationCode[] operationCodes = OperationCode.values();

@@ -22,7 +22,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /**
  * Manages the online users info and the disk files related to all WQ users.
  */
-class UserStorage {
+public class UserStorage {
 
     /**
      * Paths for the db files.
@@ -47,7 +47,7 @@ class UserStorage {
     private final Lock readLock = readWriteLock.readLock();
     private final Lock writeLock = readWriteLock.writeLock();
 
-    private static UserStorage instance;
+    private static UserStorage instance = UserStorage.getInstance();
     private UserStorage() {
         // Initialise storage directories
         Config config = Config.getInstance();
@@ -123,7 +123,7 @@ class UserStorage {
      * @param password
      * @return true if the user is correctly logged in
      */
-    boolean logInUser(String nickName, String password) {
+    public boolean logInUser(String nickName, String password) {
         // Fail on logging in an user which is already online
         if (this.isOnline(nickName)) return false;
         try {
@@ -144,7 +144,7 @@ class UserStorage {
      * Drops an user from the loaded users. Eventually updates its records.
      * @param nickName
      */
-    void logOutUser(String nickName) {
+    public void logOutUser(String nickName) {
         if (!this.isOnline(nickName)) return;
         User user = this.onlineUsers.remove(nickName);
         if (this.policy.equals(Policy.ON_SESSION_CLOSE)) {
@@ -175,7 +175,7 @@ class UserStorage {
      * @param recipientNick
      * @return true if all conditions for a friendship request hold and the request is stored.
      */
-    boolean requestFriendship(String requester, String recipientNick) {
+    public boolean addFriend(String requester, String recipientNick) {
         User requesterUser = this.onlineUsers.get(requester);
         if (requesterUser == null
             || !this.exists(recipientNick)
@@ -235,7 +235,7 @@ class UserStorage {
      * @return
      * @throws NoSuchElementException
      */
-    int getScore(String nickname) throws NoSuchElementException {
+    public int getScore(String nickname) throws NoSuchElementException {
         User user = this.onlineUsers.get(nickname);
         if (user != null) {
             return user.getScore();

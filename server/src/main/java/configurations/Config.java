@@ -50,8 +50,8 @@ public class Config {
      * which are stored immediately (ex. registration info).
      * Default: IMMEDIATELY
      * Accepted values for this option:
-     *  - 0: IMMEDIATELY
-     *  - 1: ON_SESSION_CLOSE
+     *  - IMMEDIATELY
+     *  - ON_SESSION_CLOSE
      */
     private Policy storageAccessPolicy = Policy.IMMEDIATELY;
     /**
@@ -112,7 +112,7 @@ public class Config {
                     if (p < 0 || p > 1) {
                         System.out.println("-useStoragePolicy: please use a value between 0 and 2");
                     } else {
-                        storageAccessPolicy = Policy.values()[p];
+                        storageAccessPolicy = Policy.valueOf(rawValue);
                     }
                     break;
                 case "-useStoragePath":
