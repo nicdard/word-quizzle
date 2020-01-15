@@ -102,6 +102,10 @@ public class User implements Comparable<User> {
         return this.friends.add(nickFriend);
     }
 
+    public boolean hasFriend(String nickFriend) {
+        return this.friends.contains(nickFriend);
+    }
+
     /**
      * Adds friends to the user's set.
      * @param nicks

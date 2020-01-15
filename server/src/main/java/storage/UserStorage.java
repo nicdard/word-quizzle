@@ -81,7 +81,6 @@ public class UserStorage {
         if (instance == null) {
             instance = new UserStorage();
             instance.onlineUsers = new ConcurrentHashMap<>();
-            //instance.ongoingFriendshipRequests = new ConcurrentHashMap<>();
         }
         return instance;
     }
@@ -144,8 +143,8 @@ public class UserStorage {
      * Drops an user from the loaded users. Eventually updates its records.
      * @param nickName
      */
-    public void logOutUser(String nickName) {
-        if (!this.isOnline(nickName)) return;
+    public boolean logOutUser(String nickName) {
+        if (nickName == null || !this.isOnline(nickName)) return false;
         User user = this.onlineUsers.remove(nickName);
         if (this.policy.equals(Policy.ON_SESSION_CLOSE)) {
             // Writes changes for this user to file
@@ -165,6 +164,7 @@ public class UserStorage {
                 }
             }
         }
+        return true;
     }
 
     /**
@@ -176,9 +176,16 @@ public class UserStorage {
      * @return true if all conditions for a friendship request hold and the request is stored.
      */
     public boolean addFriend(String requester, String recipientNick) {
+        if (requester == null
+            || recipientNick == null
+            || requester.equals(recipientNick)
+        ) {
+            return false;
+        }
         User requesterUser = this.onlineUsers.get(requester);
         if (requesterUser == null
             || !this.exists(recipientNick)
+            || requesterUser.hasFriend(recipientNick)
         ) {
             return false;
         }
@@ -207,6 +214,8 @@ public class UserStorage {
             } catch (IOException e) {
                 e.printStackTrace();
                 return false;
+            } finally {
+                this.writeLock.unlock();
             }
         }
         return true;

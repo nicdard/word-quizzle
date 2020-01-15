@@ -25,7 +25,7 @@ public class WQPacket {
      */
     private OperationCode opCode;
     /**
-     * The length of the whole packet in byte.
+     * The length of the whole packet (header included) in byte.
      * 32 bits.
      */
     private int totalLength;
@@ -45,7 +45,7 @@ public class WQPacket {
             throw new IllegalArgumentException("Invalid opCode or body");
         this.opCode = opCode;
         this.body = body;
-        this.totalLength = this.body.length + 4 + 1;
+        this.totalLength = this.body.length + getHeaderByteNumber();
     }
     /**
      * Builds a new packet and calculates the totalLength in bytes.
@@ -57,7 +57,7 @@ public class WQPacket {
             throw new IllegalArgumentException("Invalid opCode or body");
         this.opCode = opCode;
         this.body = body.getBytes();
-        this.totalLength = this.body.length + 4 + 1;
+        this.totalLength = this.body.length + getHeaderByteNumber();
     }
 
     private int getTotalLength() {
@@ -81,6 +81,7 @@ public class WQPacket {
         byteBuffer.put(OperationCode.toOneByte(this.opCode));
         byteBuffer.putInt(this.totalLength);
         byteBuffer.put(this.body);
+        byteBuffer.flip();
         return byteBuffer;
     }
     /**
@@ -117,6 +118,25 @@ public class WQPacket {
         return WQPacket.fromBytes(concat(packetBytes));
     }
 
+    public static int getPacketLengthFromHeaderBytes(List<ByteBuffer> headerChunks) {
+        return WQPacket.getPacketLengthFromHeaderBytes(concat(headerChunks));
+    }
+
+    public static int getPacketLengthFromHeaderBytes(ByteBuffer header) {
+        if (header.remaining() < WQPacket.getHeaderByteNumber()) {
+            return -1;
+        }
+        return header.getInt(WQPacket.getLengthOffeset());
+    }
+
+    public static int getHeaderByteNumber() {
+        return 5;
+    }
+
+    private static int getLengthOffeset() {
+        return 1;
+    }
+
     /**
      * Concatenates one or more byte buffers to one large buffer. The combined
      * size of all buffers must not exceed {@link java.lang.Integer#MAX_VALUE}.
@@ -124,7 +144,7 @@ public class WQPacket {
      * @return byte buffer containing the combined content of the supplied byte
      *         buffers
      */
-    private static ByteBuffer concat(List<ByteBuffer> bbs) {
+    public static ByteBuffer concat(List<ByteBuffer> bbs) {
         long length = 0;
         // get amount of remaining bytes from all buffers
         for (ByteBuffer bb : bbs) {
@@ -142,6 +162,7 @@ public class WQPacket {
         for (ByteBuffer bb : bbs) {
             bb.rewind();
             bbNew.put(bb);
+            bb.rewind();
         }
         bbNew.rewind();
         return bbNew;

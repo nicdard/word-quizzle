@@ -108,12 +108,7 @@ public class Config {
                     storageThreads = n > 1 ? n : storageThreads;
                     break;*/
                 case "-useStoragePolicy":
-                    int p = Integer.parseInt(rawValue);
-                    if (p < 0 || p > 1) {
-                        System.out.println("-useStoragePolicy: please use a value between 0 and 2");
-                    } else {
-                        storageAccessPolicy = Policy.valueOf(rawValue);
-                    }
+                    storageAccessPolicy = Policy.valueOf(rawValue);
                     break;
                 case "-useStoragePath":
                     if (!rawValue.isEmpty()) {

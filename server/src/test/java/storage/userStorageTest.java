@@ -19,7 +19,7 @@ public class userStorageTest {
     @BeforeAll
     static void before() {
         // Policy: on session close
-        String[] options = {"-useStoragePath=internal/test", "-useStoragePolicy=1"};
+        String[] options = {"-useStoragePath=internal/test", "-useStoragePolicy=ON_SESSION_CLOSE"};
         Config.getInstance().parseCommandLineArguments(
                 options
         );
