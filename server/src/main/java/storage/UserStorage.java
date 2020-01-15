@@ -328,7 +328,7 @@ public class UserStorage {
         try {
             return JSONMapper.findAndGet(filename, nickname, view);
         } catch (IOException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             throw new NoSuchElementException(
                     "Impossible to retrieve the user from "
                             + this.registrationPath

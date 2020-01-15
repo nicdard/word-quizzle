@@ -33,69 +33,9 @@
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.22.2</version>
-            </plugin>
-            <!-- Execution of server and client
-                 https://github.com/bazaarvoice/maven-process-plugin -->
-            <plugin>
-                <groupId>com.bazaarvoice.maven.plugins</groupId>
-                <artifactId>process-exec-maven-plugin</artifactId>
-                <version>0.9</version>
-                <executions>
-                    <!--Start process 1, eg., a dropwizard app dependency-->
-                    <execution>
-                        <id>server-process</id>
-                        <phase>pre-integration-test</phase>
-                        <goals>
-                            <goal>start</goal>
-                        </goals>
-                        <configuration>
-                            <name>WQServer</name>
-                            <waitForInterrupt>false</waitForInterrupt>
-                            <waitAfterLaunch>5</waitAfterLaunch>
-                            <workingDir>${basedir}/server/</workingDir>
-                            <!--<healthcheckUrl>http://localhost:8381/healthcheck</healthcheckUrl>-->
-                            <arguments>
-                                <argument>java</argument>
-                                <argument>-cp</argument>
-                                <argument>${basedir}/server/target/classes/</argument>
-                                <argument>MainClassWQServer</argument>
-                                <!-- Add another argument target to pass a configuration file -->
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <!-- Executes in a separate process an instance of the client
-                         This is done to allow multiple users testing
-                    -->
-                    <execution>
-                        <id>client-process</id>
-                        <phase>pre-integration-test</phase>
-                        <goals>
-                            <goal>start</goal>
-                        </goals>
-                        <configuration>
-                            <name>WQClient</name>
-                            <waitForInterrupt>false</waitForInterrupt>
-                            <waitAfterLaunch>5</waitAfterLaunch>
-                            <workingDir>${basedir}/client</workingDir>
-                            <!--<healthcheckUrl>http://localhost:8381/healthcheck</healthcheckUrl>-->
-                            <arguments>
-                                <argument>java</argument>
-                                <argument>-cp</argument>
-                                <argument>${basedir}/client/target/classes/</argument>
-                                <argument>MainClassWQClient</argument>
-                                <!-- Add another argument target to pass a configuration file -->
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <!--Stop all processes in reverse order-->
-                    <execution>
-                        <id>stop-all</id>
-                        <phase>post-integration-test</phase>
-                        <goals>
-                            <goal>stop-all</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                <configuration>
+                    <skipTests>true</skipTests>
+                </configuration>
             </plugin>
         </plugins>
     </build>

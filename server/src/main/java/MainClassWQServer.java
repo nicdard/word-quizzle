@@ -208,13 +208,15 @@ class MainClassWQServer {
                     } else {
                         CompletableFuture.supplyAsync(() -> UserStorage.getInstance()
                                 .logInUser(requestParameters[0], requestParameters[1])
-                        ).thenAccept(succeed -> {
-                            // Set this client connection information.
-                            state.setClientNick(requestParameters[0]);
+                        ).whenComplete((succeed, ex) -> {
+                            if (ex != null) {
+                                // Set this client connection information.
+                                state.setClientNick(requestParameters[0]);
+                            }
                             // Prepare the answer.
                             state.setPacketToWrite(new WQPacket(
                                     OperationCode.LOGIN,
-                                    succeed
+                                    ex != null && succeed
                                             ? ResponseCode.OK.name()
                                             : ResponseCode.ERROR.name()
                             ));
