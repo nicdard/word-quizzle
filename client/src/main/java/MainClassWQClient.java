@@ -1,6 +1,6 @@
 import RMIRegistrationService.RegistrationRemoteService;
 import RMIRegistrationService.RegistrationResponseStatusCode;
-import connection.Connection;
+import connection.ClientState;
 import protocol.OperationCode;
 import protocol.WQPacket;
 
@@ -27,7 +27,7 @@ public class MainClassWQClient {
     private String[] commandAndParams;
     private boolean canTakeCommand;
 
-    private Connection connection;
+    private ClientState connection;
 
     MainClassWQClient() throws IOException, InterruptedException {
         socket = SocketChannel.open();
@@ -40,7 +40,7 @@ public class MainClassWQClient {
             System.out.println("Client Connected");
         }
         this.canTakeCommand = true;
-        this.connection = new Connection();
+        this.connection = new ClientState();
         // Connect the client.
         this.manageCommunication();
     }

@@ -1,6 +1,6 @@
 import RMIRegistrationService.RegistrationRemoteService;
 import connection.Registration;
-import connection.Connection;
+import connection.ClientState;
 import protocol.OperationCode;
 import protocol.ResponseCode;
 import protocol.WQPacket;
@@ -103,7 +103,7 @@ class MainClassWQServer {
 
     private void write(SelectionKey key) throws IOException {
         SocketChannel client = (SocketChannel) key.channel();
-        Connection state = (Connection) key.attachment();
+        ClientState state = (ClientState) key.attachment();
         System.out.println("Write for client " + state.getClientNick());
         ByteBuffer toSend = state.getPacketToWrite();
         client.write(toSend);
@@ -119,7 +119,7 @@ class MainClassWQServer {
 
     private void read(SelectionKey key) throws IOException {
         SocketChannel client = (SocketChannel) key.channel();
-        Connection clientConnection = (Connection) key.attachment();
+        ClientState clientConnection = (ClientState) key.attachment();
         ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
         int read = client.read(buffer);
         if (read == -1) {
@@ -168,7 +168,7 @@ class MainClassWQServer {
         SocketChannel client = socket.accept();
         System.out.println("New Client connected");
         client.configureBlocking(false);
-        Connection state = new Connection();
+        ClientState state = new ClientState();
         // The server will wait for client's commands
         client.register(selector, SelectionKey.OP_READ, state);
     }
@@ -186,12 +186,12 @@ class MainClassWQServer {
     private void processCommand(
             final WQPacket packet,
             final SocketChannel client,
-            final Connection state
+            final ClientState state
     ) throws ClosedChannelException {
         // Checks that the packet has all the parameters expected.
         final String[] requestParameters = packet.getParameters();
         final OperationCode operationCode = packet.getOpCode();
-        if (!Connection.isWellFormedRequestPacket(requestParameters, operationCode)) {
+        if (!ClientState.isWellFormedRequestPacket(requestParameters, operationCode)) {
             state.setPacketToWrite(new WQPacket(packet.getOpCode(), ResponseCode.ERROR.name()));
             client.register(selector, SelectionKey.OP_WRITE, state);
         } else {

@@ -10,9 +10,9 @@ public class Registration implements Comparable<Registration> {
 
     private SocketChannel client;
     private int selectionKey;
-    private Connection connectionState;
+    private ClientState connectionState;
 
-    public Registration(SocketChannel client, int selectionKey, Connection connectionState) {
+    public Registration(SocketChannel client, int selectionKey, ClientState connectionState) {
         if (selectionKey != SelectionKey.OP_READ
             && selectionKey != SelectionKey.OP_WRITE
             && selectionKey != SelectionKey.OP_CONNECT
@@ -33,7 +33,7 @@ public class Registration implements Comparable<Registration> {
         return selectionKey;
     }
 
-    public Connection getConnectionState() {
+    public ClientState getConnectionState() {
         return connectionState;
     }
 
