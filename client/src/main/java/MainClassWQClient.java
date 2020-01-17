@@ -1,8 +1,12 @@
 import RMIRegistrationService.RegistrationRemoteService;
 import RMIRegistrationService.RegistrationResponseStatusCode;
+import com.fasterxml.jackson.core.type.TypeReference;
 import connection.ClientState;
 import protocol.OperationCode;
+import protocol.ResponseCode;
 import protocol.WQPacket;
+import protocol.json.JSONMapper;
+import protocol.json.RankingListItem;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -14,6 +18,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.List;
 
 public class MainClassWQClient {
 
@@ -81,7 +86,7 @@ public class MainClassWQClient {
                         break;
                     case "list":
                     case "list-friends":
-                        System.out.println("Called list");
+                        this.sendFriendsRequest();
                         break;
                     case "challenge":
                         System.out.println("Challenge called");
@@ -92,7 +97,7 @@ public class MainClassWQClient {
                     case "show":
                     case "show-rankings":
                     case "show-ranking-list":
-                        System.out.println("Ranking list");
+                        this.sendRankingRequest();
                         break;
                     case "logout":
                         System.out.println("Logging you out..");
@@ -216,6 +221,26 @@ public class MainClassWQClient {
         }
     }
 
+    private void sendFriendsRequest() throws ClosedChannelException {
+          if (this.validateParams(0)) {
+            this.connection.setPacketToWrite(new WQPacket(
+                    OperationCode.GET_FRIENDS, ""
+            ));
+            this.socket.register(selector, SelectionKey.OP_WRITE);
+            this.canTakeCommand = false;
+        }
+    }
+
+    private void sendRankingRequest() throws ClosedChannelException {
+        if (this.validateParams(0)) {
+            this.connection.setPacketToWrite(new WQPacket(
+                    OperationCode.GET_RANKING, ""
+            ));
+            this.socket.register(selector, SelectionKey.OP_WRITE);
+            this.canTakeCommand = false;
+        }
+    }
+
     private boolean validateParams(int number) {
         if (this.commandAndParams == null || this.commandAndParams.length != number + 1) {
             System.out.println("Invalid parameters");
@@ -240,13 +265,11 @@ public class MainClassWQClient {
                 ByteBuffer buf = ByteBuffer.allocate(BUFFER_SIZE);
                 int read = socket.read(buf);
                 if (read == -1) {
-                    System.out.println("Socket closed.");
                     // Server side of the socket is closed.
                     // Close the socket too.
                     socket.close();
                     System.out.println("The server is unreachable!");
-                    Thread.sleep(500);
-                    return;
+                    throw new IOException("The server is unreachable");
                 } else {
                     buf.flip();
                     boolean hasReadAllPacket = this.connection.addChunk(buf);
@@ -255,8 +278,14 @@ public class MainClassWQClient {
                         System.out.println("Response for op: "
                                 + wqPacket.getOpCode()
                                 + "\nBody: "
-                                + wqPacket.getBody()
+                                + wqPacket.getBodyAsString()
                         );
+                        if (wqPacket.getOpCode() == OperationCode.LOGOUT
+                                && ResponseCode.OK.name().equals(wqPacket.getBodyAsString())
+                        ) {
+                            this.connection.reset();
+                        }
+                        this.prettyPrint(wqPacket);
                         // Enable user interaction.
                         this.canTakeCommand = true;
                         // It will set interest to write on the socket after
@@ -281,4 +310,35 @@ public class MainClassWQClient {
         selector.selectedKeys().clear();
     }
 
+    private void prettyPrint(WQPacket wqPacket) {
+        if (!connection.isAssigned())
+        if (wqPacket.getOpCode() == OperationCode.GET_RANKING) {
+            try {
+                List<RankingListItem> listItems =
+                        JSONMapper.objectMapper.readValue(
+                                wqPacket.getBody(),
+                                new TypeReference<List<RankingListItem>>() { }
+                                );
+                listItems.stream()
+                        .sorted()
+                        .forEach((it -> System.out.println(it.name + " " + it.score)));
+            } catch (IOException e) {
+                System.out.println("Error!");
+            }
+        }
+        if (wqPacket.getOpCode() == OperationCode.GET_FRIENDS) {
+            try {
+                List<String> listItems =
+                        JSONMapper.objectMapper.readValue(
+                                wqPacket.getBody(),
+                                new TypeReference<List<String>>() { }
+                        );
+                listItems.stream()
+                        .sorted()
+                        .forEach(System.out::println);
+            } catch (IOException e) {
+                System.out.println("Error!");
+            }
+        }
+    }
 }

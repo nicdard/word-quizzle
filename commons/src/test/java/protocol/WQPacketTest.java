@@ -13,10 +13,10 @@ public class WQPacketTest {
         WQPacket wqPacket = new WQPacket(OperationCode.LOGIN, "user1 11111");
         ByteBuffer byteBuffer = ByteBuffer.wrap(wqPacket.toBytes());
         WQPacket deserializedPacket = WQPacket.fromBytes(byteBuffer);
-        Assertions.assertEquals(wqPacket.getBody(), deserializedPacket.getBody());
+        Assertions.assertEquals(wqPacket.getBodyAsString(), deserializedPacket.getBodyAsString());
         Assertions.assertEquals(wqPacket.getOpCode(), deserializedPacket.getOpCode());
         Assertions.assertEquals(OperationCode.LOGIN, deserializedPacket.getOpCode());
-        Assertions.assertEquals("user1 11111", deserializedPacket.getBody());
+        Assertions.assertEquals("user1 11111", deserializedPacket.getBodyAsString());
     }
 
     @Test
@@ -27,9 +27,9 @@ public class WQPacketTest {
         ByteBuffer byteBuffer1 = ByteBuffer.wrap(Arrays.copyOfRange(wqBytes, 0, slice));
         ByteBuffer byteBuffer2 = ByteBuffer.wrap(Arrays.copyOfRange(wqBytes, slice, wqBytes.length));
         WQPacket deserializedPacket = WQPacket.fromBytes(byteBuffer1, byteBuffer2);
-        Assertions.assertEquals(wqPacket.getBody(), deserializedPacket.getBody());
+        Assertions.assertEquals(wqPacket.getBodyAsString(), deserializedPacket.getBodyAsString());
         Assertions.assertEquals(wqPacket.getOpCode(), deserializedPacket.getOpCode());
         Assertions.assertEquals(OperationCode.GET_FRIENDS, deserializedPacket.getOpCode());
-        Assertions.assertEquals("user1 11111", deserializedPacket.getBody());
+        Assertions.assertEquals("user1 11111", deserializedPacket.getBodyAsString());
     }
 }

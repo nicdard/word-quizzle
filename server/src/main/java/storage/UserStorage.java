@@ -1,6 +1,7 @@
 package storage;
 
 import configurations.Config;
+import protocol.json.RankingListItem;
 import storage.iotasks.JSONMapper;
 import storage.iotasks.JSONUserAppender;
 import storage.models.User;
@@ -18,6 +19,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 /**
  * Manages the online users info and the disk files related to all WQ users.
@@ -228,9 +230,10 @@ public class UserStorage {
      * @return the sets of friends' nicks of the user.
      * @throws NoSuchElementException if the user is not online.
      */
-    Set<String> getFriends(String nickname) throws NoSuchElementException {
+    public Set<String> getFriends(String nickname) throws NoSuchElementException {
         // Not using containsKey for concurrency safety,
         // really not needed in this particular case but as a good practice.
+        if (nickname == null) throw new NoSuchElementException("The user must be a valid one");
         User user = this.onlineUsers.get(nickname);
         if (user != null) {
             return user.getFriends();
@@ -256,20 +259,28 @@ public class UserStorage {
      * Calculates the ranking list of a given user with his friends.
      * @param nickname
      * @return
-     * @throws IOException
+     * @throws RuntimeException
      */
-    TreeSet<User> getRankingList(String nickname) throws IOException {
+    public List<RankingListItem> getRankingList(String nickname) throws RuntimeException {
         User user = this.onlineUsers.get(nickname);
         if (user == null) {
             throw new IllegalStateException("An user must be online to request the score ranking list");
         }
-        TreeSet<User> rankingList = JSONMapper.findAndGet(
-                this.onlinePath,
-                user.getFriends(),
-                UserViews.Online.class
-        );
-        rankingList.add(user);
-        return rankingList;
+        try {
+            TreeSet<User> rankingList = JSONMapper.findAndGet(
+                    this.onlinePath,
+                    user.getFriends(),
+                    UserViews.Online.class
+            );
+            rankingList.add(user);
+            List<RankingListItem> serializableList = rankingList.stream()
+                    .sorted()
+                    .map(u -> new RankingListItem(u.getNick(), u.getScore()))
+                    .collect(Collectors.toList());
+            return serializableList;
+        } catch (IOException e) {
+            throw new RuntimeException("Internal error");
+        }
     }
 
     String getOnlinePath() {

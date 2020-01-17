@@ -13,8 +13,17 @@ import java.util.List;
  */
 public class ClientState {
 
+    /**
+     * The user nickname using this connection.
+     * When the user is not loggedIn this field is null.
+     */
+    private String clientNick;
     /** The packet to be written over the socket serialized in a byteBuffer. */
     private ByteBuffer packetToWrite;
+    /** An optional object to be serialised in a format specified by the client
+     * or in JSON by default.
+     */
+    private Object responseToSerialise;
     /** The chunks of a packet that is being read. */
     private List<ByteBuffer> packetChunks;
     /**
@@ -25,11 +34,6 @@ public class ClientState {
     private int readRemainingBytes;
     /** The packet total dimension as written in the packet header. */
     private int packetTotalDimension;
-    /**
-     * The user nickname using this connection.
-     * When the user is not loggedIn this field is null.
-     */
-    private String clientNick;
 
     public ClientState() {
         this.packetChunks = new ArrayList<>();
@@ -110,7 +114,7 @@ public class ClientState {
      * @param clientNick
      */
     public boolean setClientNick(String clientNick) {
-        if (this.clientNick != null) {
+        if (this.clientNick == null) {
             this.clientNick = clientNick;
             return true;
         } else return false;

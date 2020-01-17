@@ -13,7 +13,7 @@ public enum OperationCode {
     REQUEST_CHALLENGE,
     GET_SCORE,
     GET_RANKING,
-    // Server requests
+    // Server operations
     FORWARD_CHALLENGE,
     ENTERING_CHALLENGE,
     ASK_WORD;

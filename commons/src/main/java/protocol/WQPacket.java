@@ -68,12 +68,16 @@ public class WQPacket {
         return opCode;
     }
 
-    public String getBody() {
+    public String getBodyAsString() {
         return new String(this.body);
     }
 
+    public byte[] getBody() {
+        return this.body;
+    }
+
     public String[] getParameters() {
-        return this.getBody().split(" ");
+        return this.getBodyAsString().split(" ");
     }
 
     public ByteBuffer toByteBuffer() {
@@ -131,6 +135,10 @@ public class WQPacket {
 
     public static int getHeaderByteNumber() {
         return 5;
+    }
+
+    public static int getBodyMaxByteNumber() {
+        return Integer.MAX_VALUE - WQPacket.getHeaderByteNumber();
     }
 
     private static int getLengthOffeset() {

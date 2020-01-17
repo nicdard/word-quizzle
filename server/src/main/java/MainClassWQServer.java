@@ -1,9 +1,12 @@
 import RMIRegistrationService.RegistrationRemoteService;
-import connection.Registration;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import connection.AsyncRegistrations;
 import connection.ClientState;
+import connection.Registration;
 import protocol.OperationCode;
 import protocol.ResponseCode;
 import protocol.WQPacket;
+import protocol.json.JSONMapper;
 import storage.RegistrationRegistry;
 import storage.UserStorage;
 
@@ -16,9 +19,9 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.NoSuchElementException;
-import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.PriorityBlockingQueue;
+
 
 
 /**
@@ -29,11 +32,11 @@ import java.util.concurrent.PriorityBlockingQueue;
 class MainClassWQServer {
 
     private final int BUFFER_SIZE = 512;
-    private final Queue<Registration> registrationQueue = new PriorityBlockingQueue<>();
 
     ServerSocketChannel socket;
     Selector selector;
     Registry registry;
+    private AsyncRegistrations asyncRegistrations;
 
     MainClassWQServer() throws IOException {
 
@@ -57,6 +60,7 @@ class MainClassWQServer {
         socket.bind(new InetSocketAddress(6789));
         socket.configureBlocking(false);
         selector = Selector.open();
+        asyncRegistrations = new AsyncRegistrations(selector);
         socket.register(selector, SelectionKey.OP_ACCEPT);
 
         System.out.println("[Server] Finished server setup.");
@@ -66,17 +70,7 @@ class MainClassWQServer {
         // TODO put termination condition from client
         while(true) {
             try {
-
-                Registration registration = this.registrationQueue.poll();
-                while (registration != null) {
-                    registration.getClient().register(
-                            selector,
-                            registration.getSelectionKey(),
-                            registration.getConnectionState()
-                    );
-                    registration = this.registrationQueue.poll();
-                }
-
+                this.asyncRegistrations.callAll();
                 selector.select();
                 for (SelectionKey key : selector.selectedKeys()) {
                     try {
@@ -131,7 +125,7 @@ class MainClassWQServer {
                 WQPacket packet = clientConnection.buildWQPacketFromChucks();
                 this.processCommand(packet, client, clientConnection);
             } catch (IllegalStateException e) {
-                if (clientConnection.getClientNick() != null) {
+                if (clientConnection.isAssigned()) {
                     // If already online I must remove it also from the storage.
                     CompletableFuture.runAsync(() ->
                             UserStorage.getInstance()
@@ -151,7 +145,7 @@ class MainClassWQServer {
             boolean hasReadAllPacket = clientConnection.addChunk(buffer);
             if (hasReadAllPacket) {
                 WQPacket packet = clientConnection.buildWQPacketFromChucks();
-                System.out.println("Received packet " + packet.getOpCode() + packet.getBody());
+                System.out.println("Received packet " + packet.getOpCode() + packet.getBodyAsString());
                 this.processCommand(packet, client, clientConnection);
             } else {
                 // Synchronously register read interest for the client
@@ -198,7 +192,7 @@ class MainClassWQServer {
             // Process async commands
             switch (operationCode) {
                 case LOGIN:
-                    if (state.getClientNick() != null) {
+                    if (state.isAssigned()) {
                         // If this connection has already a user do not accept login op.
                         state.setPacketToWrite(new WQPacket(
                                 OperationCode.LOGIN,
@@ -209,23 +203,18 @@ class MainClassWQServer {
                         CompletableFuture.supplyAsync(() -> UserStorage.getInstance()
                                 .logInUser(requestParameters[0], requestParameters[1])
                         ).whenComplete((succeed, ex) -> {
-                            if (ex != null) {
+                            if (ex == null && succeed) {
                                 // Set this client connection information.
                                 state.setClientNick(requestParameters[0]);
                             }
                             // Prepare the answer.
                             state.setPacketToWrite(new WQPacket(
                                     OperationCode.LOGIN,
-                                    ex != null && succeed
+                                    ex == null && succeed
                                             ? ResponseCode.OK.name()
                                             : ResponseCode.ERROR.name()
                             ));
-                            this.registrationQueue.offer(new Registration(
-                                    client,
-                                    SelectionKey.OP_WRITE,
-                                    state
-                            ));
-                            selector.wakeup();
+                            this.syncWriteRegister(client, state);
                         });
                     }
                     break;
@@ -234,19 +223,16 @@ class MainClassWQServer {
                             .logOutUser(state.getClientNick())
                     ).thenAccept((succeed) -> {
                         System.out.println("Logging out");
+                        // Resets the connection.
+                        state.reset();
+                        // Sets the final packet.
                         state.setPacketToWrite(new WQPacket(
                                 OperationCode.LOGOUT,
                                 succeed
                                         ? ResponseCode.OK.name()
                                         : ResponseCode.ERROR.name()
                         ));
-                        state.setClientNick(null);
-                        this.registrationQueue.offer(new Registration(
-                                client,
-                                SelectionKey.OP_WRITE,
-                                state
-                        ));
-                        selector.wakeup();
+                        this.syncWriteRegister(client, state);
                         // Disconnect the client only when the client closes the socket connection.
                     });
                     break;
@@ -260,16 +246,26 @@ class MainClassWQServer {
                                         ? ResponseCode.OK.name()
                                         : ResponseCode.ERROR.name()
                         ));
-                        this.registrationQueue.offer(new Registration(
-                                client,
-                                SelectionKey.OP_WRITE,
-                                state
-                        ));
-                        selector.wakeup();
+                        this.syncWriteRegister(client, state);
                     });
                     break;
                 case GET_FRIENDS:
-                    // TODO answer with JSON
+                    try {
+                        Set<String> friends =
+                                UserStorage.getInstance().getFriends(state.getClientNick());
+                        state.setPacketToWrite(new WQPacket(
+                                OperationCode.GET_FRIENDS,
+                                JSONMapper.objectMapper.writeValueAsBytes(friends)
+                        ));
+                        client.register(selector, SelectionKey.OP_WRITE, state);
+                    } catch (NoSuchElementException | JsonProcessingException e) {
+                        // Answers immediately if an exception occurs.
+                        state.setPacketToWrite(new WQPacket(
+                                OperationCode.GET_FRIENDS,
+                                ResponseCode.ERROR.name()
+                        ));
+                        client.register(selector, SelectionKey.OP_WRITE, state);
+                    }
                     break;
                 case REQUEST_CHALLENGE:
                     // TODO
@@ -292,7 +288,25 @@ class MainClassWQServer {
                     client.register(selector, SelectionKey.OP_WRITE, state);
                     break;
                 case GET_RANKING:
-                    // TODO JSON
+                    CompletableFuture.supplyAsync(() -> UserStorage.getInstance()
+                            .getRankingList(state.getClientNick())
+                    ).whenComplete((list, ex) -> {
+                        byte[] response;
+                        if (ex == null) {
+                            try {
+                                response = JSONMapper.objectMapper.writeValueAsBytes(list);
+                            } catch (JsonProcessingException e) {
+                                response = ResponseCode.ERROR.name().getBytes();
+                            }
+                        } else {
+                            response = ResponseCode.ERROR.name().getBytes();
+                        }
+                        state.setPacketToWrite(new WQPacket(
+                                OperationCode.GET_RANKING,
+                                response
+                        ));
+                        this.syncWriteRegister(client, state);
+                    });
                     break;
                 case FORWARD_CHALLENGE:
                     break;
@@ -300,6 +314,20 @@ class MainClassWQServer {
                     break;
             }
         }
+    }
+
+    /**
+     * Pushes a registration operation in the asyncRegistrations and unblock selector from select.
+     * @param client
+     * @param state
+     */
+    private void syncWriteRegister(SocketChannel client, final ClientState state) {
+        this.asyncRegistrations.enqueue(new Registration(
+                client,
+                SelectionKey.OP_WRITE,
+                state
+        ));
+        selector.wakeup();
     }
 
     public static void main(String [] args) throws IOException {
