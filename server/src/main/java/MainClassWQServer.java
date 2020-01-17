@@ -2,7 +2,6 @@ import RMIRegistrationService.RegistrationRemoteService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import connection.AsyncRegistrations;
 import connection.ClientState;
-import connection.Registration;
 import protocol.OperationCode;
 import protocol.ResponseCode;
 import protocol.WQPacket;
@@ -214,7 +213,7 @@ class MainClassWQServer {
                                             ? ResponseCode.OK.name()
                                             : ResponseCode.ERROR.name()
                             ));
-                            this.syncWriteRegister(client, state);
+                            this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
                         });
                     }
                     break;
@@ -232,7 +231,7 @@ class MainClassWQServer {
                                         ? ResponseCode.OK.name()
                                         : ResponseCode.ERROR.name()
                         ));
-                        this.syncWriteRegister(client, state);
+                        this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
                         // Disconnect the client only when the client closes the socket connection.
                     });
                     break;
@@ -246,7 +245,7 @@ class MainClassWQServer {
                                         ? ResponseCode.OK.name()
                                         : ResponseCode.ERROR.name()
                         ));
-                        this.syncWriteRegister(client, state);
+                        this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
                     });
                     break;
                 case GET_FRIENDS:
@@ -285,7 +284,7 @@ class MainClassWQServer {
                                 ResponseCode.ERROR.name()
                         ));
                     }
-                    client.register(selector, SelectionKey.OP_WRITE, state);
+                    this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
                     break;
                 case GET_RANKING:
                     CompletableFuture.supplyAsync(() -> UserStorage.getInstance()
@@ -305,7 +304,7 @@ class MainClassWQServer {
                                 OperationCode.GET_RANKING,
                                 response
                         ));
-                        this.syncWriteRegister(client, state);
+                        this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
                     });
                     break;
                 case FORWARD_CHALLENGE:
@@ -316,19 +315,7 @@ class MainClassWQServer {
         }
     }
 
-    /**
-     * Pushes a registration operation in the asyncRegistrations and unblock selector from select.
-     * @param client
-     * @param state
-     */
-    private void syncWriteRegister(SocketChannel client, final ClientState state) {
-        this.asyncRegistrations.enqueue(new Registration(
-                client,
-                SelectionKey.OP_WRITE,
-                state
-        ));
-        selector.wakeup();
-    }
+
 
     public static void main(String [] args) throws IOException {
         MainClassWQServer s = new MainClassWQServer();
