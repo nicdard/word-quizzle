@@ -9,9 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * This class is used to store and process packets of a client session.
+ * Stores and processes packets of a client session.
  */
-public class ClientState {
+public class State {
 
     /**
      * The user nickname using this connection.
@@ -20,10 +20,6 @@ public class ClientState {
     private String clientNick;
     /** The packet to be written over the socket serialized in a byteBuffer. */
     private ByteBuffer packetToWrite;
-    /** An optional object to be serialised in a format specified by the client
-     * or in JSON by default.
-     */
-    private Object responseToSerialise;
     /** The chunks of a packet that is being read. */
     private List<ByteBuffer> packetChunks;
     /**
@@ -35,7 +31,13 @@ public class ClientState {
     /** The packet total dimension as written in the packet header. */
     private int packetTotalDimension;
 
-    public ClientState() {
+    /** The port on which the host listen for challenges forwarded requests */
+    private int UDPPort;
+
+    /**
+     * Constructor for the host writing to UDPConnection.
+     */
+    public State() {
         this.packetChunks = new ArrayList<>();
         this.readRemainingBytes = WQPacket.getHeaderByteNumber(); // The bytes of the header.
         this.packetTotalDimension = -1;
@@ -78,15 +80,21 @@ public class ClientState {
         switch (opCode) {
             case LOGIN:
                 // User and password
-                return params.length == 2 && !params[0].isEmpty() && !params[1].isEmpty();
+                try {
+                    return params.length == 3
+                            && !params[0].isEmpty()
+                            && !params[1].isEmpty()
+                            && !params[2].isEmpty()
+                            && Integer.parseInt(params[2]) >= 0;
+                } catch (NumberFormatException e) {
+                    return false;
+                }
             case ADD_FRIEND:
                 // User name of the friend
             case REQUEST_CHALLENGE:
                 // player2 name
             case FORWARD_CHALLENGE:
                 // player1 name
-            case ENTERING_CHALLENGE:
-                // challenger nickname
             case ASK_WORD:
                 // word to be asked
                 return params.length == 1 && !params[0].isEmpty();
@@ -130,7 +138,7 @@ public class ClientState {
     public boolean addChunk(ByteBuffer chunk) {
         this.packetChunks.add(chunk);
         int receivedBytes = this.packetChunks.stream()
-                .mapToInt(Buffer::limit)
+                .mapToInt(Buffer::remaining)
                 .sum();
         if (this.packetTotalDimension <= WQPacket.getHeaderByteNumber()
             && receivedBytes >= WQPacket.getHeaderByteNumber()
@@ -175,5 +183,13 @@ public class ClientState {
         // Reset counters.
         this.packetTotalDimension = -1;
         this.readRemainingBytes = WQPacket.getHeaderByteNumber();
+    }
+
+    public int getUDPPort() {
+        return UDPPort;
+    }
+
+    public void setUDPPort(int UDPPort) {
+        this.UDPPort = UDPPort;
     }
 }

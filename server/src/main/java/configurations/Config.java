@@ -73,6 +73,16 @@ public class Config {
      * Default: 20
      */
     private int wordsForChallenge = 20;
+    /**
+     * Configures the maximum time for a request in ms.
+     * Default: 1s
+     */
+    private int challengeRequestTimeout = 1000;
+    /**
+     * Configures the time given to a user to complete a challenge in seconds.
+     * Default: 140s -> with default config (20 words): 7s per word.
+     */
+    private int challengeTime = 140;
 
     /**
      * Parses the command line arguments and initialise the config fields.
@@ -121,6 +131,12 @@ public class Config {
                 case "-wordsForChallenge":
                     this.wordsForChallenge = Integer.parseInt(rawValue);
                     break;
+                case "-challengeRequestTimeout":
+                    this.challengeRequestTimeout = Integer.parseInt(rawValue);
+                    break;
+                case "-challengeTime":
+                    this.challengeTime = Integer.parseInt(rawValue);
+                    break;
                 default:
                     System.out.println("[WARNING] Unrecognised option: " + key + "\n->this option will be ignored");
             }
@@ -157,5 +173,13 @@ public class Config {
 
     public int getWordsForChallenge() {
         return wordsForChallenge;
+    }
+
+    public int getChallengeRequestTimeout() {
+        return challengeRequestTimeout;
+    }
+
+    public int getChallengeTime() {
+        return challengeTime;
     }
 }

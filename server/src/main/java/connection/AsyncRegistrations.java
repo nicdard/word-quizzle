@@ -15,14 +15,33 @@ public class AsyncRegistrations {
      * in the same thread were selector.select() is called.
      */
     private final Queue<Registration> registrationQueue = new PriorityBlockingQueue<>();
-
     /**
      * The selector to which the commands in the queue refer.
      */
     private Selector selector;
+    /**
+     * Stores a default channel for registration command.
+     */
+    private SocketChannel channel;
+    /**
+     * Holds the connectionState associated to the default channel.
+     */
+    private State connectionState;
 
     public AsyncRegistrations(Selector selector) {
         this.selector = selector;
+    }
+
+    /**
+     * Builds an asyncRegistrations instance with a default channel on which
+     * call register.
+     * @param selector
+     * @param channel
+     */
+    public AsyncRegistrations(Selector selector, SocketChannel channel, State state) {
+        this(selector);
+        this.channel = channel;
+        this.connectionState = state;
     }
 
     /**
@@ -31,9 +50,26 @@ public class AsyncRegistrations {
      * @param operation
      * @param state
      */
-    public void register(SocketChannel client, int operation, final ClientState state) {
+    public void register(SocketChannel client, int operation, final State state) {
         this.registrationQueue.offer(new Registration(
                 client,
+                operation,
+                state
+        ));
+        selector.wakeup();
+    }
+
+    /**
+     * Like the homologous method but uses the default channel stored
+     * at construction time.
+     * @param operation
+     * @param state
+     * @throws IllegalStateException if any default channel is provided.
+     */
+    public void register(int operation, final State state) throws IllegalStateException {
+        if (channel == null) throw new IllegalStateException("Default channel missing!");
+        this.registrationQueue.offer(new Registration(
+                channel,
                 operation,
                 state
         ));
@@ -65,6 +101,15 @@ public class AsyncRegistrations {
         while (call()) { }
     }
 
+    /**
+     * @return the state associated to the default channel.
+     * @throws IllegalStateException if default channel is not provided.
+     */
+    public State getConnectionState() throws IllegalStateException {
+        if (channel == null) throw new IllegalStateException("Default channel is not active!");
+        return connectionState;
+    }
+
 
     /**
      * Captures a registrationAction that will performed by the invoker of selector.select().
@@ -76,7 +121,7 @@ public class AsyncRegistrations {
         // The requested operation
         private int selectionKey;
         // The new connection state for this client to be attached on register invocation.
-        private ClientState connectionState;
+        private State connectionState;
 
         /**
          * Builds a new Registration command and checks if the selectionKey is valid
@@ -85,7 +130,7 @@ public class AsyncRegistrations {
          * @param selectionKey
          * @param connectionState
          */
-        Registration(SocketChannel client, int selectionKey, ClientState connectionState) {
+        Registration(SocketChannel client, int selectionKey, State connectionState) {
             if (selectionKey != SelectionKey.OP_READ
                     && selectionKey != SelectionKey.OP_WRITE
                     && selectionKey != SelectionKey.OP_CONNECT
@@ -115,7 +160,7 @@ public class AsyncRegistrations {
         /**
          * @return the attachment.
          */
-        ClientState getConnectionState() {
+        State getConnectionState() {
             return connectionState;
         }
 

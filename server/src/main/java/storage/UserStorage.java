@@ -248,6 +248,7 @@ public class UserStorage {
      * @throws NoSuchElementException
      */
     public int getScore(String nickname) throws NoSuchElementException {
+        if (nickname == null) throw new NoSuchElementException("The nickname is not valid!");
         User user = this.onlineUsers.get(nickname);
         if (user != null) {
             return user.getScore();
@@ -295,7 +296,7 @@ public class UserStorage {
      * @param nickname
      * @return true if the user is online.
      */
-    private boolean isOnline(String nickname) {
+    public boolean isOnline(String nickname) {
         return this.onlineUsers.get(nickname) != null;
     }
     /**

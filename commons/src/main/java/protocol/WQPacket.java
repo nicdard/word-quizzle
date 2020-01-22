@@ -60,6 +60,13 @@ public class WQPacket {
         this.totalLength = this.body.length + getHeaderByteNumber();
     }
 
+    /**
+     * @return the body length according to the header of the packet.
+     */
+    public int getPacketBodyLength() {
+        return this.totalLength - WQPacket.getHeaderByteNumber();
+    }
+
     private int getTotalLength() {
         return totalLength;
     }
@@ -106,7 +113,7 @@ public class WQPacket {
         OperationCode opCode = OperationCode.fromByte(packetBytes.get());
         int totalLength = packetBytes.getInt();
         byte[] body = new byte[packetBytes.remaining()];
-        packetBytes.get(body, 0, body.length);
+        packetBytes.get(body, 0, totalLength - WQPacket.getHeaderByteNumber());
         WQPacket wqPacket = new WQPacket(opCode, body);
         if (wqPacket.getTotalLength() != totalLength) {
             throw new IllegalStateException("Invalid packet parsing, bytes differ");
@@ -130,7 +137,11 @@ public class WQPacket {
         if (header.remaining() < WQPacket.getHeaderByteNumber()) {
             return -1;
         }
-        return header.getInt(WQPacket.getLengthOffeset());
+        return header.getInt(WQPacket.getLengthOffset());
+    }
+
+    public static int getPacketLengthFromHeaderBytes(byte[] header) {
+        return getPacketLengthFromHeaderBytes(ByteBuffer.wrap(header));
     }
 
     public static int getHeaderByteNumber() {
@@ -141,7 +152,7 @@ public class WQPacket {
         return Integer.MAX_VALUE - WQPacket.getHeaderByteNumber();
     }
 
-    private static int getLengthOffeset() {
+    private static int getLengthOffset() {
         return 1;
     }
 

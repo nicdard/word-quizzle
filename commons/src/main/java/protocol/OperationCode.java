@@ -13,9 +13,8 @@ public enum OperationCode {
     REQUEST_CHALLENGE,
     GET_SCORE,
     GET_RANKING,
-    // Server operations
+    // Packet sent from the client in case,
     FORWARD_CHALLENGE,
-    ENTERING_CHALLENGE,
     ASK_WORD;
 
     private static final OperationCode[] operationCodes = OperationCode.values();
