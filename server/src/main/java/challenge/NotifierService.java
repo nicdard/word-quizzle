@@ -50,12 +50,26 @@ public class NotifierService {
         return instance;
     }
 
+    /**
+     * Creates a new connection instance in the routing table.
+     * @param nick
+     * @param state
+     */
     public void addConnection(String nick, State state) {
         connectionTable.putIfAbsent(nick, state);
     }
 
+    public State getConnection(String nick) {
+        return connectionTable.get(nick);
+    }
+
+    /**
+     * Cleans the tables for the given nickname.
+     * @param nick
+     */
     public void removeConnection(String nick) {
         connectionTable.remove(nick);
+        pendingResponses.remove(nick);
     }
 
     /**
@@ -104,7 +118,7 @@ public class NotifierService {
         State requesterState = this.connectionTable.get(dest);
         if (requesterState == null)
             throw new NoSuchElementException("The user is not logged-in");
-        InetAddress ip = InetAddress.getByName("localhost");
+        InetAddress ip = InetAddress.getByName(protocol.Config.SERVER_NAME);
         byte[] sendData = wqPacket.toBytes();
         DatagramPacket packet = new DatagramPacket(
                 sendData,
@@ -143,9 +157,12 @@ public class NotifierService {
     public WQPacket getResponse(String requester)
             throws ExecutionException, InterruptedException, NoSuchElementException
     {
-        CompletableFuture<WQPacket> timer = this.pendingResponses.remove(requester);
+        CompletableFuture<WQPacket> timer = this.pendingResponses.get(requester);
         if (timer != null) {
-            return timer.get();
+            WQPacket ret = timer.get();
+            // Clean notification ongoing table.
+            this.pendingResponses.remove(requester);
+            return ret;
         } else {
             throw new NoSuchElementException("An unexpected error occurred: probably some race condition occurred!");
         }
@@ -165,18 +182,18 @@ public class NotifierService {
                                       final int timeoutMillis
     ) {
         // Starts the notification timer and saves a reference to it.
-        this.pendingResponses.putIfAbsent(sender, CompletableFuture.supplyAsync(() ->
-                {
-                    try {
-                        Thread.sleep(timeoutMillis);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                    return new WQPacket(
-                            op,
-                            responseBody
-                    );
-                })
-        );
+        CompletableFuture<WQPacket> timer = CompletableFuture.supplyAsync(() ->
+        {
+            try {
+                Thread.sleep(timeoutMillis);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return new WQPacket(
+                    op,
+                    responseBody
+            );
+        });
+        this.pendingResponses.putIfAbsent(sender, timer);
     }
 }

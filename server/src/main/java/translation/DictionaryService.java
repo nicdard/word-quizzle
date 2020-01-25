@@ -60,9 +60,9 @@ public class DictionaryService {
      * @return a map from word to translations.
      * @throws NoSuchElementException
      */
-    Map<String, List<String>> getDictionary(int n) throws NoSuchElementException {
+    public Map<String, List<String>> getDictionary(int n) throws NoSuchElementException {
         if (n > this.words.size()) {
-            throw new IllegalArgumentException("This requested number can't be fulfilled with the actual word list!");
+            throw new NoSuchElementException("This requested number can't be fulfilled with the actual word list!");
         }
         // Builds a random subset.
         Set<String> set = this.generator.ints(n, 0, this.words.size())
@@ -86,7 +86,7 @@ public class DictionaryService {
      * @throws NoSuchElementException if any of the provided word is untranslatable.
      * @return a map from word to translations.
      */
-    Map<String, List<String>> getDictionary(Set<String> words) throws NoSuchElementException {
+    public Map<String, List<String>> getDictionary(Set<String> words) throws NoSuchElementException {
         List<CompletableFuture<Translation>> promises = words.stream()
                 .filter(word -> word != null && !word.isEmpty())
                 .map(word -> CompletableFuture.supplyAsync(new TranslationSupplier(word)))
@@ -106,8 +106,8 @@ public class DictionaryService {
             return dictionary;
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
+            throw new NoSuchElementException("Impossible to get the words");
         }
-        throw new NoSuchElementException("Impossible to get the words");
     }
 
 }

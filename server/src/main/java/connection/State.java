@@ -1,6 +1,7 @@
 package connection;
 
 import protocol.OperationCode;
+import protocol.ResponseCode;
 import protocol.WQPacket;
 
 import java.nio.Buffer;
@@ -79,7 +80,7 @@ public class State {
     public static boolean isWellFormedRequestPacket(String[] params, OperationCode opCode) {
         switch (opCode) {
             case LOGIN:
-                // User and password
+                // User, password, udpPort
                 try {
                     return params.length == 3
                             && !params[0].isEmpty()
@@ -89,12 +90,16 @@ public class State {
                 } catch (NumberFormatException e) {
                     return false;
                 }
+            case FORWARD_CHALLENGE:
+                // Response code and player1 name
+                return params.length == 2
+                        && (ResponseCode.ACCEPT.name().equals(params[0])
+                            || ResponseCode.DISCARD.name().equals(params[0]))
+                        && !params[1].isEmpty();
             case ADD_FRIEND:
                 // User name of the friend
             case REQUEST_CHALLENGE:
                 // player2 name
-            case FORWARD_CHALLENGE:
-                // player1 name
             case ASK_WORD:
                 // word to be asked
                 return params.length == 1 && !params[0].isEmpty();

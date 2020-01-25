@@ -1,4 +1,5 @@
 import RMIRegistrationService.RegistrationRemoteService;
+import challenge.ChallengeHandler;
 import challenge.NotifierService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import connection.AsyncRegistrations;
@@ -15,7 +16,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
-import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -89,6 +89,14 @@ class MainClassWQServer {
                         }
                     } catch (CancelledKeyException e) {
                         System.out.println("Cancelled key ");
+                        if (key.attachment() != null) {
+                            State state = (State) key.attachment();
+                            String nick = state.getClientNick();
+                            if (nick != null) {
+                                UserStorage.getInstance().logOutUser(nick);
+                                NotifierService.getInstance().removeConnection(nick);
+                            }
+                        }
                         key.channel().close();
                     }
                 }
@@ -111,7 +119,7 @@ class MainClassWQServer {
             client.register(selector, SelectionKey.OP_WRITE, state);
         } else {
             System.out.println("Client registered for reading " + state.getClientNick());
-            // state.setPacketToWrite(null);
+            state.setPacketToWrite(null);
             client.register(selector, SelectionKey.OP_READ, state);
         }
     }
@@ -132,13 +140,11 @@ class MainClassWQServer {
             } catch (IllegalStateException e) {
                 if (clientConnection.isAssigned()) {
                     // If already online I must remove it also from the storage.
-                    CompletableFuture.runAsync(() ->
-                            UserStorage.getInstance()
-                                    .logOutUser(clientConnection.getClientNick()));
+                    UserStorage.getInstance()
+                            .logOutUser(clientConnection.getClientNick());
                     NotifierService.getInstance()
                             .removeConnection(clientConnection.getClientNick());
                     clientConnection.reset();
-
                 }
             }
             // Close the connection.
@@ -331,11 +337,11 @@ class MainClassWQServer {
                         ) {
                             boolean hasNotified = NotifierService.getInstance()
                                 .notifyChallengeRequest(
-                                    state.getClientNick(),
-                                    requestParameters[0]
+                                    requestParameters[0],
+                                    state.getClientNick()
                                 );
                             if (hasNotified) {
-                                // Run in a separate thread do the whole server doesn't block
+                                // Run in a separate thread so the whole server doesn't block
                                 CompletableFuture.runAsync(() -> {
                                     try {
                                         // Waits for the response.
@@ -371,9 +377,42 @@ class MainClassWQServer {
                     }
                     break;
                 case FORWARD_CHALLENGE:
-                break;
+                    System.out.println("Forward " + state.getClientNick() + " sender " + requestParameters[1]);
+                    if (ResponseCode.ACCEPT.name().equals(requestParameters[0])) {
+                        String sender = requestParameters[1];
+                        boolean isInTime = NotifierService.getInstance().setNotificationResponse(
+                                sender,
+                                new WQPacket(OperationCode.SETUP_CHALLENGE,
+                                        ChallengeHandler.getChallengeRules()
+                                                .replace(ChallengeHandler.getOpponentMacro(), state.getClientNick())
+                                )
+                        );
+                        System.out.println("Accepted " + state.getClientNick());
+                        if (isInTime) {
+                            // 1. Send to both a setup packet.
+                            // The sender has already done it.
+                            state.setPacketToWrite(new WQPacket(OperationCode.SETUP_CHALLENGE,
+                                    ChallengeHandler.getChallengeRules()
+                                            .replace(ChallengeHandler.getOpponentMacro(), sender)
+                                    )
+                            );
+                            // 2. Creates a thread to handle the challenge.
+                            CompletableFuture.supplyAsync(
+                                new ChallengeHandler(sender, state.getClientNick())
+                            ).whenComplete((res, ex) -> {
+
+                            });
+                        }
+                    } else {
+                        // Register both to listen.
+                        // TODO
+                        System.out.println("Discarded " + state.getClientNick());
+                    }
+                    break;
                 case ASK_WORD:
-                break;
+                    break;
+                default:
+                    System.out.println("Unhandled command! " + packet.getOpCode() + packet.getBodyAsString());
             }
         }
     }
@@ -381,6 +420,8 @@ class MainClassWQServer {
 
 
     public static void main(String [] args) throws IOException {
+        // Parse command line arguments.
+        configurations.Config.getInstance().parseCommandLineArguments(args);
         MainClassWQServer s = new MainClassWQServer();
         s.run();
     }
