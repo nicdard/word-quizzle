@@ -86,15 +86,11 @@ public class TranslationsPool extends BaseTranslationService {
 
     /**
      * Removes the oldest entry from a not empty pool.
-     * @return the removed entry
-     * @throws IllegalStateException if invoked over an empty pool
      */
-    private Map.Entry<String, ItemValue> freeSpace() throws IllegalStateException {
-        Map.Entry<String, ItemValue> entry = this.pool.entrySet().stream().min(
-                Comparator.comparing(Map.Entry::getValue)
-        ).orElseThrow(() -> new IllegalStateException("The pool was empty"));
-        this.pool.remove(entry.getKey());
-        return entry;
+    private void freeSpace() {
+        this.pool.entrySet().stream()
+                .min(Comparator.comparing(Map.Entry::getValue))
+                .ifPresent(entry -> this.pool.remove(entry.getKey()));
     }
 
     /**

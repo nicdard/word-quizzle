@@ -30,22 +30,6 @@ class TranslationsPoolTest {
     }
 
     @Test
-    void testFreeSpaceIllegalStateException() {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
-            try {
-                Method freeSpace = this.translationsPool.getClass().getDeclaredMethod("freeSpace");
-                Method invalidateCache = this.translationsPool.getClass().getDeclaredMethod("invalidateCache");
-                freeSpace.setAccessible(true);
-                invalidateCache.setAccessible(true);
-                invalidateCache.invoke(this.translationsPool);
-                freeSpace.invoke(this.translationsPool);
-            } catch (InvocationTargetException e) {
-                throw e.getTargetException();
-            }
-        });
-    }
-
-    @Test
     void testFreeSpaceTimestampAlgorithm() {
         try {
             this.translationsPool.setNext(new DummyTranslationService());

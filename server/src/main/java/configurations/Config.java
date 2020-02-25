@@ -22,6 +22,11 @@ public class Config {
     }
 
     /**
+     * True: Logs Server info messages.
+     * Default: false.
+     */
+    private boolean isDebug = false;
+    /**
      * True: use a cache layer if possible to translate the words
      * Default: false
      */
@@ -77,12 +82,24 @@ public class Config {
      * Configures the maximum time for a request in ms.
      * Default: 10s
      */
-    private int challengeRequestTimeout = 10000;
+    private int challengeRequestTimeout = 100000;
     /**
      * Configures the time given to a user to complete a challenge in seconds.
      * Default: 140s -> with default config (20 words): 7s per word.
      */
     private int challengeTime = 140;
+    /**
+     * Configures the points gained by an user when a correct answer is provided.
+     */
+    private int wordBonus = 3;
+    /**
+     * Configures the points lost by an user when a wrong answer is provided.
+     */
+    private int wordMalus = 1;
+    /**
+     * Configures the additional points gained by an user when winning a challenge.
+     */
+    private int winnerExtraPoints = 3;
 
     /**
      * Parses the command line arguments and initialise the config fields.
@@ -101,6 +118,9 @@ public class Config {
             String key = keyValue[0];
             String rawValue = keyValue[1];
             switch (key) {
+                case "-setDebug":
+                    isDebug = Boolean.parseBoolean(rawValue);
+                    break;
                 case "-useTranslationCache":
                     useTranslationCache = Boolean.parseBoolean(rawValue);
                     break;
@@ -181,5 +201,27 @@ public class Config {
 
     public int getChallengeTime() {
         return challengeTime;
+    }
+
+    public int getWordBonus() {
+        return wordBonus;
+    }
+
+    public int getWordMalus() {
+        return wordMalus;
+    }
+
+    public int getWinnerExtraPoints() {
+        return winnerExtraPoints;
+    }
+
+    public boolean isDebug() {
+        return isDebug;
+    }
+
+    public void debugLogger(String message) {
+        if (this.isDebug) {
+            System.out.println("[SERVER DEBUG] " + message);
+        }
     }
 }

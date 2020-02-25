@@ -4,6 +4,8 @@ import cli.CliManager;
 import cli.CliState;
 import cli.Prompt;
 
+import java.io.IOException;
+
 public class ExitProcessor extends BaseInputProcessor {
 
     ExitProcessor() {
@@ -20,9 +22,9 @@ public class ExitProcessor extends BaseInputProcessor {
     }
 
     @Override
-    public void process(String input) throws InputProcessorException {
+    public void process(String input) throws InputProcessorException, IOException {
         if (this.validate(input)) {
-            CliManager.getInstance().enqueue(new Prompt(
+            CliManager.getInstance().setNext(new Prompt(
                     Prompt.EXITING,
                     null,
                     CliState.EXIT

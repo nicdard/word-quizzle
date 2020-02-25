@@ -15,7 +15,8 @@ public enum OperationCode {
     GET_RANKING,
     FORWARD_CHALLENGE,
     SETUP_CHALLENGE,
-    ASK_WORD;
+    ASK_WORD,
+    STOP_CHALLENGE;
 
     private static final OperationCode[] operationCodes = OperationCode.values();
 

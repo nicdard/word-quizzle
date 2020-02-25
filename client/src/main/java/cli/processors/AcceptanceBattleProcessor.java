@@ -1,5 +1,6 @@
 package cli.processors;
 
+
 import cli.CliManager;
 import cli.CliState;
 import cli.Prompt;
@@ -7,52 +8,67 @@ import connection.TCPHandler;
 import protocol.OperationCode;
 import protocol.ResponseCode;
 import protocol.WQPacket;
+import protocol.json.PacketPojo;
 
 import java.io.IOException;
 
-public class AcceptanceBattleProcessor extends BaseInputProcessor {
+public class AcceptanceBattleProcessor extends SetupBattleProcessor {
 
-    private String sender;
+    private static final int TTL = 1000;
 
-    public AcceptanceBattleProcessor(String sender) {
-        this.sender = sender;
-        // Yes or No.
+    public AcceptanceBattleProcessor() {
+        // The number of accepted the challenge request or an empty string to exit.
         this.expectedParameters = 1;
     }
 
     @Override
-    public void process(String input) throws InputProcessorException {
-        if (this.validate(input)) {
-            if (input.equalsIgnoreCase("Y") || input.equalsIgnoreCase("yes")) {
-                // Notify user the application is processing.
-                System.out.println("Trying to setup the challenge...");
-                // Send acceptance packet.
-                try {
-                    WQPacket response = TCPHandler.getInstance().handle(
-                        new WQPacket(OperationCode.FORWARD_CHALLENGE,
-                                ResponseCode.ACCEPT.name() + " " + sender)
-                    );
+    public boolean validate(String input) {
+        if (input == null) return false;
+        else if (input.isEmpty()) return true;
+        else {
+            try {
+                Integer.parseInt(input);
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+    }
 
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+    @Override
+    public void process(String input) throws InputProcessorException, IOException {
+        if (this.validate(input)) {
+            if (input.isEmpty()) {
+                System.out.println("Exiting waiting room...");
+                CliManager.getInstance().setNext(new Prompt(
+                        Prompt.MAIN_PROMPT,
+                        BaseInputProcessor.getMainDispatcher(),
+                        CliState.MAIN
+                ));
+                return;
             } else {
-                // Send discard packet.
-                try {
-                    // Ignore response.
-                    TCPHandler.getInstance().handle(new WQPacket(
-                            OperationCode.FORWARD_CHALLENGE,
-                            ResponseCode.DISCARD.name() + " " + sender
+                int senderIndex = Integer.parseInt(input);
+                String challengeRequester = CliManager.getInstance()
+                        .getNotifier()
+                        .getSender(senderIndex);
+                if (challengeRequester == null) {
+                    // Wrong input just wait for another one.
+                    System.out.println("The number you entered do not appear in the challenge list.");
+                    CliManager.getInstance().setNext(new Prompt(
+                            Prompt.READER,
+                            new AcceptanceBattleProcessor(),
+                            CliState.WAIT_BATTLE,
+                            false
                     ));
-                    // Push main prompt on the queue.
-                    CliManager.getInstance().enqueue(new Prompt(
-                            Prompt.MAIN_PROMPT,
-                            BaseInputProcessor.getMainDispatcher(),
-                            CliState.MAIN
-                    ));
-                } catch (IOException e) {
-                    e.printStackTrace();
+                    return;
                 }
+                PacketPojo response = TCPHandler.getInstance().handle(new WQPacket(
+                        PacketPojo.buildForwardChallengeResponse(
+                                ResponseCode.OK,
+                                challengeRequester,
+                                TTL
+                        )));
+                this.setupBattle(response);
             }
         } else {
             super.process(input);

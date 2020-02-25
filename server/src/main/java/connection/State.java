@@ -3,9 +3,11 @@ package connection;
 import protocol.OperationCode;
 import protocol.ResponseCode;
 import protocol.WQPacket;
+import protocol.json.PacketPojo;
 
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,25 +25,21 @@ public class State {
     private ByteBuffer packetToWrite;
     /** The chunks of a packet that is being read. */
     private List<ByteBuffer> packetChunks;
-    /**
-     * The remaining bits to be read from the socket to complete the packet.
-     * It is initially set to the header length of a packet, after having
-     * read the header it is set to the current remaining length.
-     */
-    private int readRemainingBytes;
-    /** The packet total dimension as written in the packet header. */
-    private int packetTotalDimension;
 
     /** The port on which the host listen for challenges forwarded requests */
     private int UDPPort;
+    /** Excludes the channel associated with this from the main server selector. */
+    private boolean isMainReadSelectable;
+    /** client socketChannel */
+    private SocketChannel client;
 
     /**
      * Constructor for the host writing to UDPConnection.
      */
-    public State() {
+    public State(SocketChannel client) {
+        this.client = client;
+        this.isMainReadSelectable = true;
         this.packetChunks = new ArrayList<>();
-        this.readRemainingBytes = WQPacket.getHeaderByteNumber(); // The bytes of the header.
-        this.packetTotalDimension = -1;
     }
 
     /**
@@ -50,14 +48,11 @@ public class State {
      * After building a packet it reset the reading fields.
      * @return
      */
-    public WQPacket buildWQPacketFromChucks() throws IllegalStateException {
-        if (this.readRemainingBytes != 0) {
-            throw new IllegalStateException("Packet is not yet arrived");
-        }
+    public PacketPojo buildWQPacketFromChucks() {
         // Requesting a packet means that all chunks have been read.
-        WQPacket wqPacket = WQPacket.fromBytes(packetChunks);
+        PacketPojo packetPojo = WQPacket.fromBytes(packetChunks);
         this.resetReading();
-        return wqPacket;
+        return packetPojo;
     }
 
     /**
@@ -71,47 +66,7 @@ public class State {
                 : ByteBuffer.allocate(0);
     }
 
-    /**
-     * Checks if the packet contains the expected number of parameters.
-     * @param params
-     * @param opCode
-     * @return true if right number of parameters is found for the given operation.
-     */
-    public static boolean isWellFormedRequestPacket(String[] params, OperationCode opCode) {
-        switch (opCode) {
-            case LOGIN:
-                // User, password, udpPort
-                try {
-                    return params.length == 3
-                            && !params[0].isEmpty()
-                            && !params[1].isEmpty()
-                            && !params[2].isEmpty()
-                            && Integer.parseInt(params[2]) >= 0;
-                } catch (NumberFormatException e) {
-                    return false;
-                }
-            case FORWARD_CHALLENGE:
-                // Response code and player1 name
-                return params.length == 2
-                        && (ResponseCode.ACCEPT.name().equals(params[0])
-                            || ResponseCode.DISCARD.name().equals(params[0]))
-                        && !params[1].isEmpty();
-            case ADD_FRIEND:
-                // User name of the friend
-            case REQUEST_CHALLENGE:
-                // player2 name
-            case ASK_WORD:
-                // word to be asked
-                return params.length == 1 && !params[0].isEmpty();
-            case LOGOUT:
-            case GET_FRIENDS:
-            case GET_SCORE:
-            case GET_RANKING:
-            default:
-                // No params
-                return params.length == 1 && params[0].isEmpty();
-        }
-    }
+
 
     /**
      * @return the current client nickname associated to this connection.
@@ -145,17 +100,8 @@ public class State {
         int receivedBytes = this.packetChunks.stream()
                 .mapToInt(Buffer::remaining)
                 .sum();
-        if (this.packetTotalDimension <= WQPacket.getHeaderByteNumber()
-            && receivedBytes >= WQPacket.getHeaderByteNumber()
-        ) {
-            this.packetTotalDimension = WQPacket.getPacketLengthFromHeaderBytes(this.packetChunks);
-        }
-        if (this.readRemainingBytes != 0) {
-            this.readRemainingBytes = this.packetTotalDimension >= 0
-                    ? this.packetTotalDimension - receivedBytes
-                    : this.readRemainingBytes;
-        }
-        return this.readRemainingBytes == 0;
+        final int packetTotalDimension = WQPacket.getPacketLengthFromHeaderBytes(this.packetChunks);
+        return packetTotalDimension > 0 && packetTotalDimension - receivedBytes == 0;
     }
 
     /**
@@ -185,9 +131,6 @@ public class State {
     private void resetReading() {
         // Empty the queue.
         this.packetChunks.clear();
-        // Reset counters.
-        this.packetTotalDimension = -1;
-        this.readRemainingBytes = WQPacket.getHeaderByteNumber();
     }
 
     public int getUDPPort() {
@@ -196,5 +139,17 @@ public class State {
 
     public void setUDPPort(int UDPPort) {
         this.UDPPort = UDPPort;
+    }
+
+    public boolean isMainReadSelectable() {
+        return isMainReadSelectable;
+    }
+
+    public void setMainReadSelectable(boolean mainReadSelectable) {
+        isMainReadSelectable = mainReadSelectable;
+    }
+
+    public SocketChannel getClient() {
+        return client;
     }
 }

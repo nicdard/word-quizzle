@@ -8,12 +8,13 @@ import protocol.Config;
 import connection.TCPHandler;
 import protocol.OperationCode;
 import protocol.WQPacket;
+import protocol.json.PacketPojo;
 
 import java.io.IOException;
 
 public class LoginProcessor extends BaseInputProcessor {
 
-    private static int UDPPort = Config.UDP_PORT;
+    private static Integer UDPPort = Config.UDP_PORT;
 
     LoginProcessor() {
         expectedParameters = 3;
@@ -30,23 +31,23 @@ public class LoginProcessor extends BaseInputProcessor {
     }
 
     @Override
-    public void process(String input) throws InputProcessorException {
+    public void process(String input) throws InputProcessorException, IOException {
         if (this.validate(input)) {
-            try {
-                String[] params = input.split(" ");
-                WQPacket response = TCPHandler.getInstance().handle(new WQPacket(
-                        OperationCode.LOGIN,
-                        params[1] + " " + params[2] + " " + LoginProcessor.UDPPort
-                ));
-                System.out.println(response.getOpCode() + " " + response.getBodyAsString());
-                CliManager.getInstance().enqueue(new Prompt(
-                        Prompt.MAIN_PROMPT,
-                        BaseInputProcessor.getMainDispatcher(),
-                        CliState.MAIN
-                ));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            String[] params = input.split(" ");
+            PacketPojo response = TCPHandler.getInstance().handle(new WQPacket(
+                    PacketPojo.buildLoginRequest(
+                            params[1],
+                            params[2],
+                            LoginProcessor.UDPPort
+                    )
+            ));
+            this.prettyPrint(response);
+            if (response.isSuccessfullResponse()) Prompt.setPrompt(params[1]);
+            CliManager.getInstance().setNext(new Prompt(
+                    Prompt.MAIN_PROMPT,
+                    BaseInputProcessor.getMainDispatcher(),
+                    CliState.MAIN
+            ));
         } else {
             super.process(input);
         }
@@ -54,5 +55,11 @@ public class LoginProcessor extends BaseInputProcessor {
 
     public static void setUDPPort(int newPort) {
         UDPPort = newPort;
+    }
+
+    @Override
+    protected boolean prettyPrint(PacketPojo response) {
+        if (super.prettyPrint(response)) System.out.println("You are now logged-in!");
+        return true;
     }
 }

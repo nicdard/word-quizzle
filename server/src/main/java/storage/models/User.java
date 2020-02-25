@@ -82,9 +82,10 @@ public class User implements Comparable<User> {
         return score;
     }
 
-    public void setScore(Integer score) {
+    public User setScore(Integer score) {
         this.hasBeenModified = true;
         this.score = score;
+        return this;
     }
 
     public void setFriends(Set<String> friends) {

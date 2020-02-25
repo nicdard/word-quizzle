@@ -1,5 +1,6 @@
 package cli.processors;
 
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -20,11 +21,11 @@ public class MainDispatcherProcessor extends BaseInputProcessor {
     public boolean validate(String input) {
         String[] rawChunks = input.split(" ");
         this.toDispatch = rawChunks[0];
-        return rawChunks.length > 0 && COMMANDS.containsKey(rawChunks[0]);
+        return COMMANDS.containsKey(rawChunks[0].trim());
     }
 
     @Override
-    public void process(String input) throws InputProcessorException {
+    public void process(String input) throws InputProcessorException, IOException {
         if (this.validate(input)) {
             // Calls the right processor if known.
             COMMANDS.get(this.toDispatch).process(input);

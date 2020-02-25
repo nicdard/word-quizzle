@@ -6,6 +6,7 @@ import cli.Prompt;
 import connection.TCPHandler;
 import protocol.OperationCode;
 import protocol.WQPacket;
+import protocol.json.PacketPojo;
 
 import java.io.IOException;
 
@@ -25,22 +26,19 @@ public class ScoreProcessor extends BaseInputProcessor {
     }
 
     @Override
-    public void process(String input) throws InputProcessorException {
+    public void process(String input) throws InputProcessorException, IOException {
         if (this.validate(input)) {
-            try {
-                WQPacket response = TCPHandler.getInstance().handle(new WQPacket(
-                        OperationCode.GET_SCORE,
-                        ""
-                ));
-                System.out.println(response.getBodyAsString());
-                CliManager.getInstance().enqueue(new Prompt(
-                        Prompt.MAIN_PROMPT,
-                        BaseInputProcessor.getMainDispatcher(),
-                        CliState.MAIN
-                ));
-            } catch (IOException e) {
-                e.printStackTrace();
+            PacketPojo response = TCPHandler.getInstance().handle(new WQPacket(
+                    new PacketPojo(OperationCode.GET_SCORE)
+            ));
+            if (response.isSuccessfullResponse()) {
+                System.out.println(response.getScores());
             }
+            CliManager.getInstance().setNext(new Prompt(
+                    Prompt.MAIN_PROMPT,
+                    BaseInputProcessor.getMainDispatcher(),
+                    CliState.MAIN
+            ));
         } else {
             super.process(input);
         }

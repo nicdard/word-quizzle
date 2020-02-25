@@ -2,6 +2,7 @@ package protocol;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import protocol.json.PacketPojo;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -10,26 +11,29 @@ public class WQPacketTest {
 
     @Test
     void deserializingSerializedPacketEqualityTest() {
-        WQPacket wqPacket = new WQPacket(OperationCode.LOGIN, "user1 11111");
+        PacketPojo loginPacket = PacketPojo.buildLoginRequest(
+                "user1",  "11111", 23
+        );
+        WQPacket wqPacket = new WQPacket(loginPacket);
         ByteBuffer byteBuffer = ByteBuffer.wrap(wqPacket.toBytes());
-        WQPacket deserializedPacket = WQPacket.fromBytes(byteBuffer);
-        Assertions.assertEquals(wqPacket.getBodyAsString(), deserializedPacket.getBodyAsString());
-        Assertions.assertEquals(wqPacket.getOpCode(), deserializedPacket.getOpCode());
-        Assertions.assertEquals(OperationCode.LOGIN, deserializedPacket.getOpCode());
-        Assertions.assertEquals("user1 11111", deserializedPacket.getBodyAsString());
+        PacketPojo deserializedPacket = WQPacket.fromBytes(byteBuffer);
+        Assertions.assertTrue(deserializedPacket.isRequest());
+        Assertions.assertFalse(deserializedPacket.isResponse());
+        Assertions.assertEquals(loginPacket.getNickName(), deserializedPacket.getNickName());
+        Assertions.assertEquals(loginPacket.getPassword(), deserializedPacket.getPassword());
+        Assertions.assertEquals(OperationCode.LOGIN, deserializedPacket.getOperationCode());
     }
 
     @Test
     void deserielizeFromByteBuffersTest() {
-        WQPacket wqPacket = new WQPacket(OperationCode.GET_FRIENDS, "user1 11111");
+        PacketPojo packet = new PacketPojo(OperationCode.GET_FRIENDS);
+        WQPacket wqPacket = new WQPacket(packet);
         byte[] wqBytes = wqPacket.toBytes();
         int slice = wqBytes.length / 2;
         ByteBuffer byteBuffer1 = ByteBuffer.wrap(Arrays.copyOfRange(wqBytes, 0, slice));
         ByteBuffer byteBuffer2 = ByteBuffer.wrap(Arrays.copyOfRange(wqBytes, slice, wqBytes.length));
-        WQPacket deserializedPacket = WQPacket.fromBytes(byteBuffer1, byteBuffer2);
-        Assertions.assertEquals(wqPacket.getBodyAsString(), deserializedPacket.getBodyAsString());
-        Assertions.assertEquals(wqPacket.getOpCode(), deserializedPacket.getOpCode());
-        Assertions.assertEquals(OperationCode.GET_FRIENDS, deserializedPacket.getOpCode());
-        Assertions.assertEquals("user1 11111", deserializedPacket.getBodyAsString());
+        PacketPojo deserializedPacket = WQPacket.fromBytes(byteBuffer1, byteBuffer2);
+        Assertions.assertEquals(packet.getOperationCode(), deserializedPacket.getOperationCode());
+        Assertions.assertEquals(OperationCode.GET_FRIENDS, deserializedPacket.getOperationCode());
     }
 }

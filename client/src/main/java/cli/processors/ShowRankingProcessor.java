@@ -8,6 +8,7 @@ import connection.TCPHandler;
 import protocol.OperationCode;
 import protocol.WQPacket;
 import protocol.json.JSONMapper;
+import protocol.json.PacketPojo;
 import protocol.json.RankingListItem;
 
 import java.io.IOException;
@@ -30,31 +31,21 @@ public class ShowRankingProcessor extends BaseInputProcessor {
     }
 
     @Override
-    public void process(String input) throws InputProcessorException {
+    public void process(String input) throws InputProcessorException, IOException {
         if (this.validate(input)) {
-            try {
-                WQPacket response = TCPHandler.getInstance().handle(new WQPacket(
-                        OperationCode.GET_RANKING,
-                        ""
-                ));
-                // Pretty print
-                List<RankingListItem> listItems =
-                        JSONMapper.objectMapper.readValue(
-                                response.getBody(),
-                                new TypeReference<List<RankingListItem>>() { }
-                        );
-                listItems.stream()
-                        .sorted()
-                        .forEach((it -> System.out.println(it.name + " " + it.score)));
-                // Next interface prompt
-                CliManager.getInstance().enqueue(new Prompt(
-                        Prompt.MAIN_PROMPT,
-                        BaseInputProcessor.getMainDispatcher(),
-                        CliState.MAIN
-                ));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            PacketPojo response = TCPHandler.getInstance().handle(new WQPacket(
+                    new PacketPojo(OperationCode.GET_RANKING)
+            ));
+            // Pretty print
+            response.getRankingList().stream()
+                    .sorted()
+                    .forEach((it -> System.out.println(it.name + " " + it.score)));
+            // Next interface prompt
+            CliManager.getInstance().setNext(new Prompt(
+                    Prompt.MAIN_PROMPT,
+                    BaseInputProcessor.getMainDispatcher(),
+                    CliState.MAIN
+            ));
         } else {
             super.process(input);
         }

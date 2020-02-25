@@ -1,5 +1,9 @@
 package cli.processors;
 
+import protocol.json.PacketPojo;
+
+import java.io.IOException;
+
 public abstract class BaseInputProcessor implements InputProcessor {
 
     protected int expectedParameters = 0;
@@ -22,11 +26,11 @@ public abstract class BaseInputProcessor implements InputProcessor {
     }
 
     @Override
-    public void process(String input) throws InputProcessorException {
+    public void process(String input) throws InputProcessorException, IOException {
         if (this.next != null) {
             this.next.process(input);
         } else {
-            // None an handle this input.
+            // None can handle this input.
             throw new InputProcessorException(input);
         }
     }
@@ -42,5 +46,20 @@ public abstract class BaseInputProcessor implements InputProcessor {
             mainDispatcher = new MainDispatcherProcessor();
         }
         return mainDispatcher;
+    }
+
+    /**
+     * Validates a response and if an error occurred it prints an error message.
+     * @param response
+     * @return
+     */
+    protected boolean prettyPrint(PacketPojo response) {
+        if (response.isSuccessfullResponse()) {
+            return true;
+        } else {
+            System.out.println("There was an error. ");
+            if (response.isExplainedErrorResponse()) System.out.println(response.getMessage());
+            return false;
+        }
     }
 }

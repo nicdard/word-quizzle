@@ -6,6 +6,7 @@ import cli.CliManager;
 import cli.CliState;
 import cli.Prompt;
 
+import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -41,7 +42,7 @@ public class RegistrationProcessor extends BaseInputProcessor {
     }
 
     @Override
-    public void process(String input) throws InputProcessorException {
+    public void process(String input) throws InputProcessorException, IOException {
         if (this.validate(input)) {
             try {
                 RegistrationResponseStatusCode responseCode =
@@ -65,7 +66,7 @@ public class RegistrationProcessor extends BaseInputProcessor {
                         System.out.println("The server has experienced an internal error");
                         break;
                 }
-                CliManager.getInstance().enqueue(new Prompt(
+                CliManager.getInstance().setNext(new Prompt(
                         Prompt.MAIN_PROMPT,
                         BaseInputProcessor.getMainDispatcher(),
                         CliState.MAIN

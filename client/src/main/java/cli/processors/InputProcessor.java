@@ -1,5 +1,7 @@
 package cli.processors;
 
+import java.io.IOException;
+
 public interface InputProcessor {
 
     /**
@@ -13,7 +15,7 @@ public interface InputProcessor {
      * @param input
      * @throws InputProcessorException
      */
-    void process(String input) throws InputProcessorException;
+    void process(String input) throws InputProcessorException, IOException;
 
     /**
      * Sets the next processor to be applied on the input.

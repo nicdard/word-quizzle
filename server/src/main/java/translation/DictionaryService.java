@@ -99,7 +99,7 @@ public class DictionaryService {
                         .collect(Collectors.toList())
                 );
         try {
-            Map<String, List<String>> dictionary = new ConcurrentHashMap<>();
+            Map<String, List<String>> dictionary = new HashMap<>();
             translationsMapping.get().forEach(t ->
                     dictionary.put(t.getSourceWord(), t.getTranslations())
             );

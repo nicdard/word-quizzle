@@ -1,17 +1,24 @@
 package cli;
 
+import cli.processors.BaseInputProcessor;
+
 import java.io.IOException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.PriorityBlockingQueue;
 
 public class CliManager {
 
-    private BlockingQueue<Prompt> prompts;
+    private Thread consumer;
+    private NotificationConsumer notifier;
+    private Prompt next;
     private CliState state;
 
     private static CliManager instance = getInstance();
     private CliManager() {
-        prompts = new PriorityBlockingQueue<>();
+        // Initial prompt.
+        next = new Prompt(
+                Prompt.MAIN_PROMPT,
+                BaseInputProcessor.getMainDispatcher(),
+                CliState.MAIN
+        );
         state = CliState.MAIN;
     }
     public static CliManager getInstance() {
@@ -21,32 +28,34 @@ public class CliManager {
         return instance;
     }
 
-    public void enqueue(Prompt prompt) {
-        this.prompts.offer(prompt);
+    public void setNext(Prompt prompt) {
+        this.next = prompt;
     }
 
     public void executeNext() {
-        Prompt prompt = null;
-        try {
-            prompt = this.prompts.take();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        Prompt prompt = this.next;
+        this.setNext(null);
         if (prompt != null) {
+            // if not waiting room should shutdown consumer thread if present.
+            if (prompt.getExecutionState() != CliState.WAIT_BATTLE) {
+                if (this.notifier != null) this.notifier.stop();
+            }
             if (this.hasTransition(prompt.getExecutionState())) {
                 try {
                     // Sets the new state.
                     this.state = prompt.getExecutionState();
                     // Prompts the user and executes next step.
                     prompt.execute();
-                } catch (IOException e) {
-                    e.printStackTrace();
+                } catch (NullPointerException | IOException e) {
+                    // Re-add the prompt.
+                    CliManager.getInstance().setNext(prompt);
                 }
             } else {
-                // TODO Discard prompt and call onReject
+                //this.onReject();
             }
         } else {
-            System.out.println("[WARNING] No more prompts!");
+            System.out.println("[ERROR] Unexpected error!");
+            this.state = CliState.ERROR;
         }
     }
 
@@ -98,5 +107,27 @@ public class CliManager {
             case ERROR:
                 return false;
         }
+    }
+
+    // TODO
+    private void onReject() {
+
+    }
+
+    public void setConsumer(Thread consumer) {
+        this.consumer = consumer;
+    }
+
+    public NotificationConsumer getNotifier() {
+        return notifier;
+    }
+
+    public void cleanUpNofier() throws InterruptedException {
+        if (this.notifier != null) notifier.stop();
+        if (this.consumer != null) consumer.join();
+    }
+
+    public void setNotifier(NotificationConsumer notifier) {
+        this.notifier = notifier;
     }
 }

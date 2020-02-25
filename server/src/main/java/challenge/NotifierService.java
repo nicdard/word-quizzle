@@ -5,16 +5,37 @@ import connection.State;
 import protocol.OperationCode;
 import protocol.ResponseCode;
 import protocol.WQPacket;
+import protocol.json.PacketPojo;
 
 import java.io.IOException;
 import java.net.*;
 import java.util.NoSuchElementException;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Notifies a user over UDP. Used to forward request challenge.
  */
 public class NotifierService {
+
+    private static final class Responses {
+
+        private CompletableFuture<WQPacket> response;
+        private AtomicInteger participants;
+
+        Responses(CompletableFuture<WQPacket> response) {
+            this.response = response;
+            this.participants = new AtomicInteger(0);
+        }
+
+        public AtomicInteger getParticipants() {
+            return participants;
+        }
+
+        public CompletableFuture<WQPacket> getResponse() {
+            return response;
+        }
+    }
 
     /**
      * The UDP socket used by the service to write packets to the clients.
@@ -27,7 +48,7 @@ public class NotifierService {
     /**
      * Stores pending responses of sent notifications.
      */
-    private ConcurrentHashMap<String, CompletableFuture<WQPacket>> pendingResponses;
+    private ConcurrentHashMap<String, Responses> pendingResponses;
 
     private static NotifierService instance;
     private NotifierService() {
@@ -92,17 +113,17 @@ public class NotifierService {
             return false;
         }
         // builds challenge request packet
-        WQPacket wqPacket = new WQPacket(
-                OperationCode.FORWARD_CHALLENGE,
-                sender
-        );
+        WQPacket wqPacket = new WQPacket(PacketPojo.buildForwardChallengeRequest(
+                sender,
+                Config.getInstance().getChallengeRequestTimeout()
+        ));
         this.forwardMessage(dest, wqPacket);
         // If anyone will notify the sender before the timeout this future will complete
         // giving a DISCARD challenge response.
         this.setSenderNotificationTimeout(
                 sender,
                 OperationCode.REQUEST_CHALLENGE,
-                ResponseCode.DISCARD + " " + dest,
+                ResponseCode.ERROR,
                 Config.getInstance().getChallengeRequestTimeout()
         );
         return true;
@@ -136,7 +157,7 @@ public class NotifierService {
      * @return true if and only if the packet has been set.
      */
     public boolean setNotificationResponse(String sender, WQPacket wqPacket) {
-        CompletableFuture<WQPacket> pendingResponse = this.pendingResponses.get(sender);
+        CompletableFuture<WQPacket> pendingResponse = this.pendingResponses.get(sender).getResponse();
         if (pendingResponse != null && !pendingResponse.isDone()) {
             // Replace wqPacket returned as response and completes the future
             // so the get call returns immediately. The challenge sender will unlock and
@@ -157,11 +178,14 @@ public class NotifierService {
     public WQPacket getResponse(String requester)
             throws ExecutionException, InterruptedException, NoSuchElementException
     {
-        CompletableFuture<WQPacket> timer = this.pendingResponses.get(requester);
+        Responses response = this.pendingResponses.get(requester);
+        CompletableFuture<WQPacket> timer = response.getResponse();
         if (timer != null) {
             WQPacket ret = timer.get();
-            // Clean notification ongoing table.
-            this.pendingResponses.remove(requester);
+            // Clear notification ongoing table.
+            if (response.getParticipants().addAndGet(1) >= 2) {
+                this.pendingResponses.remove(requester);
+            }
             return ret;
         } else {
             throw new NoSuchElementException("An unexpected error occurred: probably some race condition occurred!");
@@ -173,12 +197,12 @@ public class NotifierService {
      * after timeoutMillis ms if nobody fulfill it before the timeout expires.
      * @param sender
      * @param op
-     * @param responseBody
+     * @param res
      * @param timeoutMillis
      */
     private void setSenderNotificationTimeout(final String sender,
                                       final OperationCode op,
-                                      final String responseBody,
+                                      final ResponseCode res,
                                       final int timeoutMillis
     ) {
         // Starts the notification timer and saves a reference to it.
@@ -189,11 +213,11 @@ public class NotifierService {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            return new WQPacket(
+            return new WQPacket(new PacketPojo(
                     op,
-                    responseBody
-            );
+                    res
+            ));
         });
-        this.pendingResponses.putIfAbsent(sender, timer);
+        this.pendingResponses.putIfAbsent(sender, new Responses(timer));
     }
 }

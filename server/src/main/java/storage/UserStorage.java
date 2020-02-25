@@ -284,6 +284,12 @@ public class UserStorage {
         }
     }
 
+    public boolean updateUserScore(String user, int points) {
+        return this.onlineUsers.computeIfPresent(user, (k, v) ->
+            v.setScore(v.getScore() + points)
+        ) != null;
+    }
+
     String getOnlinePath() {
         return onlinePath;
     }

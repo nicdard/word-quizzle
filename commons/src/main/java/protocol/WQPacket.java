@@ -1,5 +1,10 @@
 package protocol;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import protocol.json.PacketPojo;
+import protocol.json.JSONMapper;
+
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
@@ -14,16 +19,11 @@ import java.util.List;
  * The receiver (when answering to the sender request) will copy the opCode
  * from the request and the body will contain the ResponseCode.
  *
- * The parameters of a packet are split using " " character and are parsed and
- * taken according to their index (positional parameters) and the opCode.
+ * The WQPacket actually is a wrapper of the real packet (PacketPojo) which
+ * adds the header containing the length.
  */
 public class WQPacket {
 
-    /**
-     * Operation code.
-     * 8 bit.
-     */
-    private OperationCode opCode;
     /**
      * The length of the whole packet (header included) in byte.
      * 32 bits.
@@ -31,65 +31,78 @@ public class WQPacket {
     private int totalLength;
     /**
      * The body of the packet containing the parameters of a request.
-     * Each parameter has the following format: [property_name]=[value];
+     * It is always a json.
+     * @link PacketPojo.
      */
     private byte[] body;
 
     /**
-     * Builds a new packet and calculates the totalLength in bytes.
-     * @param opCode
-     * @param body
+     * The packet
      */
-    public WQPacket(OperationCode opCode, byte[] body) {
-        if (opCode == null || body == null)
-            throw new IllegalArgumentException("Invalid opCode or body");
-        this.opCode = opCode;
-        this.body = body;
-        this.totalLength = this.body.length + getHeaderByteNumber();
-    }
+    private PacketPojo deserializedBody;
+
     /**
      * Builds a new packet and calculates the totalLength in bytes.
-     * @param opCode
      * @param body
      */
-    public WQPacket(OperationCode opCode, String body) {
-        if (opCode == null || body == null)
+    public WQPacket(byte[] body) {
+        if (body == null)
             throw new IllegalArgumentException("Invalid opCode or body");
-        this.opCode = opCode;
-        this.body = body.getBytes();
+        this.body = body;
         this.totalLength = this.body.length + getHeaderByteNumber();
+        try {
+            this.deserializedBody = JSONMapper.objectMapper.readValue(this.body, PacketPojo.class);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Not deserializable");
+        }
+    }
+
+    /**
+     * Builds a new packet and calculates the totalLength in bytes.
+     * @param body
+     */
+    public WQPacket(String body) {
+        this(body != null ? body.getBytes() : null);
+    }
+
+    /**
+     * Wraps a packetPojo and serializes it to bytes. Adds the header indicating the totalLength.
+     * @param commandPojo
+     */
+    public WQPacket(PacketPojo commandPojo) {
+        if (commandPojo != null) {
+            try {
+                this.deserializedBody = commandPojo;
+                this.body = JSONMapper.objectMapper.writeValueAsBytes(commandPojo);
+                this.totalLength = this.body.length + WQPacket.getHeaderByteNumber();
+            } catch (JsonProcessingException e) {
+                throw new IllegalArgumentException("Not serializable");
+            }
+        } else {
+            throw new IllegalArgumentException("Invalid parameter.");
+        }
     }
 
     /**
      * @return the body length according to the header of the packet.
      */
-    public int getPacketBodyLength() {
+    public long getPacketBodyLength() {
         return this.totalLength - WQPacket.getHeaderByteNumber();
     }
 
-    private int getTotalLength() {
+    private long getTotalLength() {
         return totalLength;
     }
 
-    public OperationCode getOpCode() {
-        return opCode;
+    public PacketPojo getDeserializedBody() {
+        return this.deserializedBody;
     }
 
-    public String getBodyAsString() {
-        return new String(this.body);
-    }
-
-    public byte[] getBody() {
-        return this.body;
-    }
-
-    public String[] getParameters() {
-        return this.getBodyAsString().split(" ");
-    }
-
+    /**
+     * @return the byteBuffer, ready to be sent or read representing this packet.
+     */
     public ByteBuffer toByteBuffer() {
         ByteBuffer byteBuffer = ByteBuffer.allocate(this.totalLength);
-        byteBuffer.put(OperationCode.toOneByte(this.opCode));
         byteBuffer.putInt(this.totalLength);
         byteBuffer.put(this.body);
         byteBuffer.flip();
@@ -107,25 +120,24 @@ public class WQPacket {
      * Checks that the length in the packet is the actual length
      * of the parsed one.
      * @param packetBytes
-     * @return
+     * @return the packet in its object representation.
      */
-    public static WQPacket fromBytes(ByteBuffer packetBytes) {
-        OperationCode opCode = OperationCode.fromByte(packetBytes.get());
+    public static PacketPojo fromBytes(ByteBuffer packetBytes) {
         int totalLength = packetBytes.getInt();
         byte[] body = new byte[packetBytes.remaining()];
         packetBytes.get(body, 0, totalLength - WQPacket.getHeaderByteNumber());
-        WQPacket wqPacket = new WQPacket(opCode, body);
+        WQPacket wqPacket = new WQPacket(body);
         if (wqPacket.getTotalLength() != totalLength) {
             throw new IllegalStateException("Invalid packet parsing, bytes differ");
         }
-        return wqPacket;
+        return wqPacket.getDeserializedBody();
     }
 
-    public static WQPacket fromBytes(ByteBuffer ...packetBytes) {
+    public static PacketPojo fromBytes(ByteBuffer ...packetBytes) {
         return WQPacket.fromBytes(concat(packetBytes));
     }
 
-    public static WQPacket fromBytes(List<ByteBuffer> packetBytes) {
+    public static PacketPojo fromBytes(List<ByteBuffer> packetBytes) {
         return WQPacket.fromBytes(concat(packetBytes));
     }
 
@@ -133,11 +145,15 @@ public class WQPacket {
         return WQPacket.getPacketLengthFromHeaderBytes(concat(headerChunks));
     }
 
+    /**
+     * @param header
+     * @return the totalLength of a packet; -1 indicates that the header has not yet been read.
+     */
     public static int getPacketLengthFromHeaderBytes(ByteBuffer header) {
         if (header.remaining() < WQPacket.getHeaderByteNumber()) {
             return -1;
         }
-        return header.getInt(WQPacket.getLengthOffset());
+        return header.getInt();
     }
 
     public static int getPacketLengthFromHeaderBytes(byte[] header) {
@@ -145,15 +161,7 @@ public class WQPacket {
     }
 
     public static int getHeaderByteNumber() {
-        return 5;
-    }
-
-    public static int getBodyMaxByteNumber() {
-        return Integer.MAX_VALUE - WQPacket.getHeaderByteNumber();
-    }
-
-    private static int getLengthOffset() {
-        return 1;
+        return 4;
     }
 
     /**

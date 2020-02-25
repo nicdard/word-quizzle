@@ -16,16 +16,9 @@ public class MainClassWQClient {
     MainClassWQClient() throws IOException {
         // Creates the instance and connect the socket.
         TCPHandler.getInstance();
-        udpReader = new UDPReader();
-        // TODO check if getPort == -1
+        udpReader = UDPReader.getInstance();
         // UDP listener for battle requests.
         udpReaderExecutor = new Thread(udpReader);
-        // Generate first prompt.
-        CliManager.getInstance().enqueue(new Prompt(
-                Prompt.MAIN_PROMPT,
-                BaseInputProcessor.getMainDispatcher(),
-                CliState.MAIN
-        ));
         LoginProcessor.setUDPPort(udpReader.getPort());
         udpReaderExecutor.start();
     }
@@ -45,6 +38,7 @@ public class MainClassWQClient {
         TCPHandler.getInstance().close();
         udpReader.stop();
         udpReaderExecutor.join();
+        CliManager.getInstance().cleanUpNofier();
     }
 }
 

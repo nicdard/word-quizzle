@@ -221,11 +221,6 @@ public class JSONMapper {
                     // Merges the two objects
                     User update = users.get(users.indexOf(parsedUser));
                     update.addFriends(parsedUser.getFriends());
-                    // NOTE: it can not happen that two non sequential score values
-                    // are written for the same user.
-                    if (update.getScore() < parsedUser.getScore()) {
-                        update.setScore(parsedUser.getScore());
-                    }
                 }
             }
             // Writes the merged user instances

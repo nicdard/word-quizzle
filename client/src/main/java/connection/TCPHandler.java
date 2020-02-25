@@ -2,6 +2,7 @@ package connection;
 
 import protocol.Config;
 import protocol.WQPacket;
+import protocol.json.PacketPojo;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,10 +38,19 @@ public class TCPHandler {
      * @return the response packet.
      * @throws IOException
      */
-    public WQPacket handle(WQPacket wqPacket) throws IOException {
+    public PacketPojo handle(WQPacket wqPacket) throws IOException {
         // send the request.
         this.send(wqPacket);
-         // Read header.
+        return this.receive();
+    }
+
+    /**
+     * Reads a packet from the server and unwraps it.
+     * @return the received packet.
+     * @throws IOException
+     */
+    public PacketPojo receive() throws IOException {
+        // Read header.
         byte[] header = new byte[WQPacket.getHeaderByteNumber()];
         int still = WQPacket.getHeaderByteNumber();
         this.readn(header, 0, still);
@@ -51,11 +61,10 @@ public class TCPHandler {
         byte[] body = new byte[length - WQPacket.getHeaderByteNumber()];
         // Read body.
         readn(body, 0, length - WQPacket.getHeaderByteNumber());
-        WQPacket response = WQPacket.fromBytes(
+        return WQPacket.fromBytes(
                 ByteBuffer.wrap(header),
                 ByteBuffer.wrap(body)
         );
-        return response;
     }
 
     /**

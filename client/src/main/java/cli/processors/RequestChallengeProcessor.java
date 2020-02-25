@@ -7,11 +7,12 @@ import connection.TCPHandler;
 import protocol.OperationCode;
 import protocol.ResponseCode;
 import protocol.WQPacket;
+import protocol.json.PacketPojo;
 
 import java.io.IOException;
 import java.util.Arrays;
 
-public class RequestChallengeProcessor extends BaseInputProcessor {
+public class RequestChallengeProcessor extends SetupBattleProcessor {
 
     RequestChallengeProcessor() {
         this.expectedParameters = 2;
@@ -28,63 +29,13 @@ public class RequestChallengeProcessor extends BaseInputProcessor {
     }
 
     @Override
-    public void process(String input) throws InputProcessorException {
+    public void process(String input) throws InputProcessorException, IOException {
         if (this.validate(input)) {
-            try {
-                String[] params = input.split(" ");
-                WQPacket response = TCPHandler.getInstance().handle(new WQPacket(
-                        OperationCode.REQUEST_CHALLENGE,
-                        params[1] // friend name
-                ));
-                String[] parameters = response.getParameters();
-                if (parameters.length < 2) {
-                    System.out.println("An error occurred: MALFORMED PACKET "
-                            + response.getBodyAsString()
-                    );
-                    CliManager.getInstance().enqueue(new Prompt(
-                            Prompt.MAIN_PROMPT,
-                            BaseInputProcessor.getMainDispatcher(),
-                            CliState.MAIN
-                    ));
-                } else {
-                    if (ResponseCode.ACCEPT.name().equals(parameters[0])) {
-                        System.out.println("User "
-                                + parameters[1]
-                                + " accepted your challenge!"
-                        );
-                        if (parameters.length > 2) {
-                            System.out.println(Arrays.toString(
-                                    Arrays.copyOfRange(
-                                            parameters,
-                                            2,
-                                            parameters.length
-                                    )
-                            ));
-                        }
-                        // TODO second TCP request for setup and starting.
-                    } else if (ResponseCode.DISCARD.name().equals(parameters[0])) {
-                        if (parameters.length > 2) {
-                            System.out.println(Arrays.toString(
-                                    Arrays.copyOfRange(
-                                            parameters,
-                                            2,
-                                            parameters.length
-                                    )
-                            ));
-                        }
-                        CliManager.getInstance().enqueue(new Prompt(
-                                Prompt.MAIN_PROMPT,
-                                BaseInputProcessor.getMainDispatcher(),
-                                CliState.MAIN
-                        ));
-                    } else {
-                         throw new IllegalArgumentException("A protocol error occurred");
-                    }
-                }
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            String[] params = input.split(" ");
+            PacketPojo response = TCPHandler.getInstance().handle(new WQPacket(
+                    PacketPojo.buildChallengeRequest(params[1])
+            ));
+            this.setupBattle(response);
         } else {
             super.process(input);
         }

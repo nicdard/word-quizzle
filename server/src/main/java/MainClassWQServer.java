@@ -1,14 +1,13 @@
 import RMIRegistrationService.RegistrationRemoteService;
 import challenge.ChallengeHandler;
 import challenge.NotifierService;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import connection.AsyncRegistrations;
 import connection.State;
 import protocol.Config;
 import protocol.OperationCode;
 import protocol.ResponseCode;
 import protocol.WQPacket;
-import protocol.json.JSONMapper;
+import protocol.json.PacketPojo;
 import storage.RegistrationRegistry;
 import storage.UserStorage;
 
@@ -43,7 +42,7 @@ class MainClassWQServer {
     MainClassWQServer() throws IOException {
 
         try {
-            System.out.println("[Server] Start SERVER....");
+            System.out.println("Starting!");
             RegistrationRemoteService remoteService = RegistrationRegistry.getInstance();
             // export RMI registration service
             RegistrationRemoteService stub =
@@ -88,7 +87,7 @@ class MainClassWQServer {
                             write(key);
                         }
                     } catch (CancelledKeyException e) {
-                        System.out.println("Cancelled key ");
+                        configurations.Config.getInstance().debugLogger("Cancelled key");
                         if (key.attachment() != null) {
                             State state = (State) key.attachment();
                             String nick = state.getClientNick();
@@ -110,17 +109,21 @@ class MainClassWQServer {
     private void write(SelectionKey key) throws IOException {
         SocketChannel client = (SocketChannel) key.channel();
         State state = (State) key.attachment();
-        System.out.println("Write for client " + state.getClientNick());
+        configurations.Config.getInstance().debugLogger("Write for client " + state.getClientNick());
         ByteBuffer toSend = state.getPacketToWrite();
-        System.out.println(new String(state.getPacketToWrite().array()));
         client.write(toSend);
         if (toSend.hasRemaining()) {
             // Must finish to write the response
             client.register(selector, SelectionKey.OP_WRITE, state);
         } else {
-            System.out.println("Client registered for reading " + state.getClientNick());
             state.setPacketToWrite(null);
-            client.register(selector, SelectionKey.OP_READ, state);
+            if (state.isMainReadSelectable()) {
+                configurations.Config.getInstance().debugLogger(
+                        "Client registered for reading "
+                                + state.getClientNick()
+                );
+                client.register(selector, SelectionKey.OP_READ, state);
+            }
         }
     }
 
@@ -131,26 +134,8 @@ class MainClassWQServer {
         int read = client.read(buffer);
         if (read == -1) {
             // The client-server direction has been closed.
-            // The request packet has been arrived.
-            // Process it asynchronously and, once a response is built,
-            // register interest for writing to the client.
-            try {
-                WQPacket packet = clientConnection.buildWQPacketFromChucks();
-                this.processCommand(packet, client, clientConnection);
-            } catch (IllegalStateException e) {
-                if (clientConnection.isAssigned()) {
-                    // If already online I must remove it also from the storage.
-                    UserStorage.getInstance()
-                            .logOutUser(clientConnection.getClientNick());
-                    NotifierService.getInstance()
-                            .removeConnection(clientConnection.getClientNick());
-                    clientConnection.reset();
-                }
-            }
-            // Close the connection.
+            // Close the connection too.
             client.close();
-        } else if (read == 0) {
-            System.out.println("Letti 0" + clientConnection.getClientNick());
         } else {
             // Prepare buffer to be parsed.
             buffer.flip();
@@ -158,8 +143,8 @@ class MainClassWQServer {
             // completely arrived.
             boolean hasReadAllPacket = clientConnection.addChunk(buffer);
             if (hasReadAllPacket) {
-                WQPacket packet = clientConnection.buildWQPacketFromChucks();
-                System.out.println("Received packet " + packet.getOpCode() + packet.getBodyAsString());
+                PacketPojo packet = clientConnection.buildWQPacketFromChucks();
+                configurations.Config.getInstance().debugLogger("Received packet " + packet.getOperationCode());
                 this.processCommand(packet, client, clientConnection);
             } else {
                 // Synchronously register read interest for the client
@@ -174,9 +159,9 @@ class MainClassWQServer {
 
     private void accept(SelectionKey key) throws IOException {
         SocketChannel client = socket.accept();
-        System.out.println("New Client connected");
+        configurations.Config.getInstance().debugLogger("New Client connected!");
         client.configureBlocking(false);
-        State state = new State();
+        State state = new State(client);
         // The server will wait for client's commands
         client.register(selector, SelectionKey.OP_READ, state);
     }
@@ -192,47 +177,38 @@ class MainClassWQServer {
      * @throws ClosedChannelException
      */
     private void processCommand(
-            final WQPacket packet,
+            final PacketPojo packet,
             final SocketChannel client,
             final State state
     ) throws IOException {
         // Checks that the packet has all the parameters expected.
-        final String[] requestParameters = packet.getParameters();
-        final OperationCode operationCode = packet.getOpCode();
-        if (!State.isWellFormedRequestPacket(requestParameters, operationCode)) {
-            state.setPacketToWrite(new WQPacket(packet.getOpCode(), ResponseCode.ERROR.name()));
-            client.register(selector, SelectionKey.OP_WRITE, state);
-        } else {
+        final OperationCode operationCode = packet.getOperationCode();
+        if (packet.isWellFormedRequestPacket() || packet.isSuccessfullResponse()) {
             // Process async commands
             switch (operationCode) {
                 case LOGIN:
                     if (state.isAssigned()) {
                         // If this connection has already a user do not accept login op.
                         state.setPacketToWrite(new WQPacket(
-                                OperationCode.LOGIN,
-                                ResponseCode.ERROR.name()
-                        ));
+                                new PacketPojo(operationCode, ResponseCode.ERROR, "This connection is already assigned to: " + state.getClientNick()))
+                        );
                         client.register(selector, SelectionKey.OP_WRITE, state);
                     } else {
                         CompletableFuture.supplyAsync(() -> UserStorage.getInstance()
-                                .logInUser(requestParameters[0], requestParameters[1])
+                                .logInUser(packet.getNickName(), packet.getPassword())
                         ).whenComplete((succeed, ex) -> {
                             if (ex == null && succeed) {
                                 // Set this client connection information.
-                                state.setClientNick(requestParameters[0]);
-                                state.setUDPPort(Integer.parseInt(requestParameters[2]));
-                                NotifierService.getInstance().addConnection(
-                                        requestParameters[0],
-                                        state
-                                );
+                                state.setClientNick(packet.getNickName());
+                                state.setUDPPort(packet.getUDPPort());
+                                NotifierService.getInstance().addConnection(packet.getNickName(), state);
                             }
                             // Prepare the answer.
-                            state.setPacketToWrite(new WQPacket(
-                                    OperationCode.LOGIN,
+                            state.setPacketToWrite(new WQPacket(new PacketPojo(packet.getOperationCode(),
                                     ex == null && succeed
-                                            ? ResponseCode.OK.name()
-                                            : ResponseCode.ERROR.name()
-                            ));
+                                            ? ResponseCode.OK
+                                            : ResponseCode.ERROR
+                            )));
                             this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
                         });
                     }
@@ -241,32 +217,35 @@ class MainClassWQServer {
                     CompletableFuture.supplyAsync(() -> UserStorage.getInstance()
                             .logOutUser(state.getClientNick())
                     ).thenAccept((succeed) -> {
-                        System.out.println("Logging out");
-                        // Remove
-                        NotifierService.getInstance().removeConnection(state.getClientNick());
-                        // Resets the connection.
-                        state.reset();
-                        // Sets the final packet.
-                        state.setPacketToWrite(new WQPacket(
-                                OperationCode.LOGOUT,
+                        if (succeed) {
+                            System.out.println("Logging out");
+                            // Remove
+                            NotifierService.getInstance().removeConnection(state.getClientNick());
+                            // Resets the connection.
+                            state.reset();
+                        }
+                        // Sets the response packet.
+                        state.setPacketToWrite(new WQPacket(new PacketPojo(
+                                packet.getOperationCode(),
                                 succeed
-                                        ? ResponseCode.OK.name()
-                                        : ResponseCode.ERROR.name()
-                        ));
+                                        ? ResponseCode.OK
+                                        : ResponseCode.ERROR
+                        )));
                         this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
+
                         // Disconnect the client only when the client closes the socket connection.
                     });
                     break;
                 case ADD_FRIEND:
                     CompletableFuture.supplyAsync(() -> UserStorage.getInstance()
-                            .addFriend(state.getClientNick(), requestParameters[0])
+                            .addFriend(state.getClientNick(), packet.getFriend())
                     ).thenAccept(succeed -> {
-                        state.setPacketToWrite(new WQPacket(
-                                OperationCode.ADD_FRIEND,
+                        state.setPacketToWrite(new WQPacket(new PacketPojo(
+                                packet.getOperationCode(),
                                 succeed
-                                        ? ResponseCode.OK.name()
-                                        : ResponseCode.ERROR.name()
-                        ));
+                                        ? ResponseCode.OK
+                                        : ResponseCode.ERROR
+                        )));
                         this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
                     });
                     break;
@@ -275,16 +254,16 @@ class MainClassWQServer {
                         Set<String> friends =
                                 UserStorage.getInstance().getFriends(state.getClientNick());
                         state.setPacketToWrite(new WQPacket(
-                                OperationCode.GET_FRIENDS,
-                                JSONMapper.objectMapper.writeValueAsBytes(friends)
+                                PacketPojo.buildGetFriendsResponse(friends)
                         ));
                         client.register(selector, SelectionKey.OP_WRITE, state);
-                    } catch (NoSuchElementException | JsonProcessingException e) {
+                    } catch (NoSuchElementException | IllegalArgumentException e) {
                         // Answers immediately if an exception occurs.
-                        state.setPacketToWrite(new WQPacket(
-                                OperationCode.GET_FRIENDS,
-                                ResponseCode.ERROR.name()
-                        ));
+                        state.setPacketToWrite(new WQPacket(new PacketPojo(
+                                packet.getOperationCode(),
+                                ResponseCode.ERROR,
+                                e.getMessage()
+                        )));
                         client.register(selector, SelectionKey.OP_WRITE, state);
                     }
                     break;
@@ -292,16 +271,13 @@ class MainClassWQServer {
                     // It can be performed synchronously since the user
                     // is already loaded from the file.
                     try {
-                        int score = UserStorage.getInstance().getScore(state.getClientNick());
-                        state.setPacketToWrite(new WQPacket(
-                                    OperationCode.GET_SCORE,
-                                    ResponseCode.OK.name() + " " + score
-                            ));
+                        int scores = UserStorage.getInstance().getScore(state.getClientNick());
+                        state.setPacketToWrite(new WQPacket(PacketPojo.buildScoreResponse(scores)));
                     } catch (NoSuchElementException e) {
-                        state.setPacketToWrite(new WQPacket(
-                                    OperationCode.GET_SCORE,
-                                    ResponseCode.ERROR.name()
-                            ));
+                        state.setPacketToWrite(new WQPacket(new PacketPojo(
+                                packet.getOperationCode(),
+                                ResponseCode.ERROR)
+                        ));
                     }
                     this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
                     break;
@@ -309,20 +285,22 @@ class MainClassWQServer {
                     CompletableFuture.supplyAsync(() -> UserStorage.getInstance()
                                 .getRankingList(state.getClientNick())
                         ).whenComplete((list, ex) -> {
-                        byte[] response;
                         if (ex == null) {
                             try {
-                                response = JSONMapper.objectMapper.writeValueAsBytes(list);
-                            } catch (JsonProcessingException e) {
-                                response = ResponseCode.ERROR.name().getBytes();
+                                state.setPacketToWrite(new WQPacket(PacketPojo.buildRankingResponse(list)));
+                            } catch (IllegalArgumentException e) {
+                                state.setPacketToWrite(new WQPacket(new PacketPojo(
+                                        packet.getOperationCode(),
+                                        ResponseCode.ERROR,
+                                        e.getMessage()
+                                )));
                             }
                         } else {
-                            response = ResponseCode.ERROR.name().getBytes();
+                            state.setPacketToWrite(new WQPacket(new PacketPojo(
+                                    packet.getOperationCode(),
+                                    ResponseCode.ERROR
+                            )));
                         }
-                        state.setPacketToWrite(new WQPacket(
-                                    OperationCode.GET_RANKING,
-                                    response
-                            ));
                         this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
                     });
                     break;
@@ -332,92 +310,107 @@ class MainClassWQServer {
                         UserStorage storage = UserStorage.getInstance();
                         if (storage
                                 .getFriends(state.getClientNick())
-                                .contains(requestParameters[0])
-                            && storage.isOnline(requestParameters[0])
+                                .contains(packet.getFriend())
+                            && storage.isOnline(packet.getFriend())
                         ) {
                             boolean hasNotified = NotifierService.getInstance()
                                 .notifyChallengeRequest(
-                                    requestParameters[0],
+                                    packet.getFriend(),
                                     state.getClientNick()
                                 );
                             if (hasNotified) {
                                 // Run in a separate thread so the whole server doesn't block
-                                CompletableFuture.runAsync(() -> {
-                                    try {
-                                        // Waits for the response.
-                                        WQPacket response = NotifierService.getInstance()
-                                                .getResponse(state.getClientNick());
-                                        state.setPacketToWrite(response);
-                                    } catch ( ExecutionException
-                                            | InterruptedException
-                                            | NoSuchElementException e)
-                                    {
-                                        state.setPacketToWrite(new WQPacket(
-                                                OperationCode.REQUEST_CHALLENGE,
-                                                ResponseCode.ERROR.name()
-                                        ));
-                                    } finally {
-                                        this.asyncRegistrations.register(
-                                                client,
-                                                SelectionKey.OP_WRITE,
-                                                state
-                                        );
-                                    }
-                                });
+                                CompletableFuture.runAsync(() -> this.setup(client, state.getClientNick(), state, packet));
+                            } else {
+                                throw new IOException("Notifier could notify the user.");
                             }
                         } else {
                             throw new NoSuchElementException("Not online!");
                         }
                     } catch (IOException | NoSuchElementException e) {
-                        state.setPacketToWrite(new WQPacket(
-                                OperationCode.REQUEST_CHALLENGE,
-                                ResponseCode.ERROR.name()
-                        ));
+                        state.setPacketToWrite(new WQPacket(new PacketPojo(
+                                packet.getOperationCode(),
+                                ResponseCode.ERROR
+                        )));
                         client.register(selector, SelectionKey.OP_WRITE, state);
                     }
                     break;
                 case FORWARD_CHALLENGE:
-                    System.out.println("Forward " + state.getClientNick() + " sender " + requestParameters[1]);
-                    if (ResponseCode.ACCEPT.name().equals(requestParameters[0])) {
-                        String sender = requestParameters[1];
-                        boolean isInTime = NotifierService.getInstance().setNotificationResponse(
+                    System.out.println("Forward " + state.getClientNick() + " sender " + packet.getFriend());
+                    String sender = packet.getFriend();
+                    if (packet.isSuccessfullResponse()) {
+                        NotifierService.getInstance().setNotificationResponse(
                                 sender,
-                                new WQPacket(OperationCode.SETUP_CHALLENGE,
+                                new WQPacket(new PacketPojo(
+                                        OperationCode.SETUP_CHALLENGE,
+                                        ResponseCode.OK,
                                         ChallengeHandler.getChallengeRules()
-                                                .replace(ChallengeHandler.getOpponentMacro(), state.getClientNick())
-                                )
+                                ))
                         );
-                        System.out.println("Accepted " + state.getClientNick());
-                        if (isInTime) {
-                            // 1. Send to both a setup packet.
-                            // The sender has already done it.
-                            state.setPacketToWrite(new WQPacket(OperationCode.SETUP_CHALLENGE,
-                                    ChallengeHandler.getChallengeRules()
-                                            .replace(ChallengeHandler.getOpponentMacro(), sender)
-                                    )
-                            );
-                            // 2. Creates a thread to handle the challenge.
-                            CompletableFuture.supplyAsync(
-                                new ChallengeHandler(sender, state.getClientNick())
-                            ).whenComplete((res, ex) -> {
+                        System.out.println("Accepted " + state.getClientNick() + " " + sender);
+                        this.setup(client, sender, state, packet);
+                        // Run the challenge thread.
+                        ChallengeHandler challenge = new ChallengeHandler(this.asyncRegistrations, sender, state.getClientNick());
+                        Thread executor = new Thread(challenge);
+                        executor.start();
 
-                            });
-                        }
                     } else {
-                        // Register both to listen.
-                        // TODO
+                        // Sets error packet so that the requester does not wait till the timeout.
+                        NotifierService.getInstance().setNotificationResponse(
+                                sender,
+                                new WQPacket(new PacketPojo(
+                                        OperationCode.SETUP_CHALLENGE,
+                                        ResponseCode.ERROR,
+                                        "The opponent refuses the challenge"
+                                ))
+                        );
                         System.out.println("Discarded " + state.getClientNick());
+                        this.setup(client, sender, state, packet);
                     }
                     break;
-                case ASK_WORD:
-                    break;
                 default:
-                    System.out.println("Unhandled command! " + packet.getOpCode() + packet.getBodyAsString());
+                    System.out.println("Unhandled command! " + packet.getOperationCode());
+                    // Register the client anyway.
+                    client.register(selector, SelectionKey.OP_READ, state);
             }
+        } else {
+            state.setPacketToWrite(new WQPacket(
+                    new PacketPojo(operationCode, ResponseCode.ERROR, "Malformed request")
+            ));
+            configurations.Config.getInstance().debugLogger("Malformed request from " + state.getClient() + " " + packet.getOperationCode());
+            client.register(selector, SelectionKey.OP_WRITE, state);
         }
     }
 
-
+    private void setup(SocketChannel client, String requester, State state, PacketPojo packet) {
+        try {
+            // Waits for the response.
+            WQPacket response = NotifierService.getInstance()
+                    .getResponse(requester);
+            if (OperationCode.SETUP_CHALLENGE.equals(
+                    response.getDeserializedBody().getOperationCode())
+                    && response.getDeserializedBody().isSuccessfullResponse()
+            ) {
+                // Exclude selectable state for reading in the main selector.
+                state.setMainReadSelectable(false);
+            }
+            state.setPacketToWrite(response);
+        } catch ( ExecutionException
+                | InterruptedException
+                | NoSuchElementException e)
+        {
+            state.setPacketToWrite(new WQPacket(new PacketPojo(
+                    packet.getOperationCode(),
+                    ResponseCode.ERROR
+            )));
+        } finally {
+            this.asyncRegistrations.register(
+                    client,
+                    SelectionKey.OP_WRITE,
+                    state
+            );
+        }
+    }
 
     public static void main(String [] args) throws IOException {
         // Parse command line arguments.
