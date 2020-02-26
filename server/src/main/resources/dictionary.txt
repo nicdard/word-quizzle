@@ -32,7 +32,6 @@ adoro
 affare
 affatto
 affermare
-affinché
 affittacamere
 affrontare
 agenti
@@ -114,7 +113,6 @@ antilope
 antonio
 antropologo
 anzi
-anziché
 ape
 aperta
 aperto
@@ -189,7 +187,6 @@ attenzione
 attesa
 attimo
 attirare
-attività
 atto
 attore
 attorno
@@ -200,7 +197,6 @@ aumentare
 automobile
 autore
 autoritratto
-autorità
 avanti
 avanzare
 avere
@@ -212,7 +208,6 @@ avrai
 avrebbero
 avremmo
 avremo
-avrò
 avvelenare
 avvenire
 avvertire
@@ -280,7 +275,6 @@ caccia
 cadere
 caduta
 caduto
-caffè
 calcio
 caldo
 calma
@@ -359,7 +353,6 @@ chiedere
 chiesa
 chilometro
 chimico
-chissà
 chitarra
 chiudere
 chiudi
@@ -370,13 +363,9 @@ ciao
 ciascuno
 cielo
 cinema
-cioè
 circa
 cittadino
-città
 civile
-civiltà
-ciò
 classe
 clavicembalo
 cliente
@@ -520,7 +509,6 @@ difendere
 difesa
 differenza
 difficile
-difficoltà
 diffondere
 digli
 dimenticare
@@ -538,7 +526,6 @@ dirigere
 diritto
 dirlo
 dirti
-dirò
 disco
 discorso
 discutere
@@ -597,7 +584,6 @@ egli
 ehm
 elementi
 elemento
-elettricità
 elettrico
 elevare
 energia
@@ -631,7 +617,6 @@ estate
 estendere
 estero
 estremo
-età
 euro
 europa
 europeo
@@ -678,7 +663,6 @@ fila
 film
 filo
 finalmente
-finché
 fine
 finestra
 finestrino
@@ -709,7 +693,6 @@ fortunato
 forza
 forze
 fossero
-fottuto
 fra
 francese
 francia
@@ -746,7 +729,6 @@ gente
 geometria
 george
 gesto
-gesù
 gettare
 ghepardo
 giallo
@@ -772,8 +754,6 @@ giuro
 giusta
 giustizia
 giusto
-già
-giù
 godere
 governo
 grado
@@ -872,7 +852,6 @@ jimmy
 johnny
 kate
 labbro
-laggiù
 lago
 lampada
 lanciare
@@ -881,7 +860,6 @@ largo
 lasciare
 lasciate
 lascio
-lassù
 latino
 lato
 latte
@@ -908,7 +886,6 @@ lezione
 libera
 liberare
 libero
-libertà
 libreria
 libri
 libro
@@ -990,7 +967,6 @@ metta
 mette
 mettere
 metto
-metà
 mezzo
 mica
 miglior
@@ -1052,7 +1028,6 @@ nazionale
 nazione
 neanche
 necessario
-necessità
 negozio
 nemico
 nemmeno
@@ -1153,7 +1128,6 @@ palle
 pane
 pantaloni
 pantofole
-papà
 parco
 parecchio
 parere
@@ -1193,8 +1167,6 @@ pensiero
 peperoncino
 peperone
 per
-perché
-perciò
 perdere
 perdita
 perfetto
@@ -1207,7 +1179,6 @@ persino
 persona
 personaggio
 personale
-però
 pesante
 pesare
 pesce
@@ -1231,15 +1202,12 @@ piede
 piena
 pieno
 pietra
-pietà
 pinguino
 piuttosto
 pizzicare
-più
 poco
 poesia
 poeta
-poiché
 politica
 politico
 polizia
@@ -1261,7 +1229,6 @@ posare
 posizione
 possedere
 possibile
-possibilità
 posti
 posto
 potenza
@@ -1348,7 +1315,6 @@ qualcosa
 qualcun
 qualcuno
 quale
-qualità
 qualsiasi
 qualunque
 quante
@@ -1377,7 +1343,6 @@ rappresentare
 ray
 razza
 reale
-realtà
 reame
 recare
 recente
@@ -1559,7 +1524,6 @@ servire
 servizi
 servizio
 servono
-sesso
 settembre
 settimana
 settore
@@ -1588,7 +1552,6 @@ sito
 situazione
 smettere
 sociale
-società
 soffrire
 sognare
 sogni
@@ -1760,7 +1723,6 @@ trattare
 tratto
 treno
 triste
-troia
 troppo
 trovare
 trovata
@@ -1785,7 +1747,6 @@ umano
 unico
 unione
 unire
-università
 uno
 uomo
 uovo
@@ -1822,7 +1783,6 @@ venuti
 veramente
 verde
 verdura
-verità
 verniciare
 vero
 versione
@@ -1865,7 +1825,6 @@ volere
 volevi
 volgere
 volo
-volontà
 voltare
 volto
 vorrebbe

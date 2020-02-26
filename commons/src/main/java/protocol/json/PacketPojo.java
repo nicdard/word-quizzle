@@ -82,9 +82,10 @@ public class PacketPojo {
                 .setTtl(ttl);
     }
 
-    public static PacketPojo buildAskWordResponse(String word) {
+    public static PacketPojo buildAskWordResponse(String word, String translation) {
         return new PacketPojo(OperationCode.ASK_WORD, ResponseCode.OK)
-                .setWord(word);
+                .setWord(word)
+                .setTranslation(translation);
     }
 
 
@@ -143,10 +144,16 @@ public class PacketPojo {
 
     /**
      * Ask-word request/response:
-     * - the english word to be translated.
+     * - the word to be translated.
      */
     @JsonProperty("w")
     String word;
+    /**
+     * Ask-word response:
+     * - the translation.
+     */
+    @JsonProperty("t")
+    String translation;
 
     /* -------------------------------------------- */
     // General response fields.
@@ -200,6 +207,8 @@ public class PacketPojo {
     }
 
     public String getWord() { return word; }
+
+    public String getTranslation() { return translation; }
 
     public List<RankingListItem> getRankingList() {
         return rankingList;
@@ -319,6 +328,11 @@ public class PacketPojo {
 
     private PacketPojo setTtl(Integer ttl) {
         this.ttl = ttl;
+        return this;
+    }
+
+    private PacketPojo setTranslation(String translation) {
+        this.translation = translation;
         return this;
     }
 }

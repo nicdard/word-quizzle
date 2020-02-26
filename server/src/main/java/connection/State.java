@@ -1,12 +1,11 @@
 package connection;
 
-import protocol.OperationCode;
-import protocol.ResponseCode;
 import protocol.WQPacket;
 import protocol.json.PacketPojo;
 
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,14 +29,17 @@ public class State {
     private int UDPPort;
     /** Excludes the channel associated with this from the main server selector. */
     private boolean isMainReadSelectable;
+    /** The main thread selection key. */
+    private SelectionKey mainKey;
     /** client socketChannel */
     private SocketChannel client;
 
     /**
      * Constructor for the host writing to UDPConnection.
      */
-    public State(SocketChannel client) {
+    public State(SocketChannel client, SelectionKey selectionKey) {
         this.client = client;
+        this.mainKey = selectionKey;
         this.isMainReadSelectable = true;
         this.packetChunks = new ArrayList<>();
     }
@@ -151,5 +153,9 @@ public class State {
 
     public SocketChannel getClient() {
         return client;
+    }
+
+    public SelectionKey getMainKey() {
+        return mainKey;
     }
 }

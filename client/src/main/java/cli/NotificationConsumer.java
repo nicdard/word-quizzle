@@ -19,7 +19,9 @@ public class NotificationConsumer implements Runnable {
         while (!exit) {
             try {
                 PacketPojo packetPojo = UDPReader.getInstance().consumePacket();
-                if (OperationCode.FORWARD_CHALLENGE.equals(packetPojo.getOperationCode())) {
+                if (packetPojo != null &&
+                    OperationCode.FORWARD_CHALLENGE.equals(packetPojo.getOperationCode())
+                ) {
                     // Checks TTL.
                     if (System.currentTimeMillis() - packetPojo.getTimestamp() < packetPojo.getTtl()) {
                         if (!exit) {

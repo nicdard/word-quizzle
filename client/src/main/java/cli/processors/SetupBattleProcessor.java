@@ -30,10 +30,12 @@ public abstract class SetupBattleProcessor extends BaseInputProcessor {
                         CliState.ERROR
                 ));
             } else {
+                System.out.println("You can press enter to skip the word if you don't know the translation.");
                 CliManager.getInstance().setNext(new Prompt(
                         Prompt.getAskWordStringPrompt(packetPojo.getWord()),
                         new AskWordProcessor(packetPojo.getWord()),
-                        CliState.ONGOING_BATTLE
+                        CliState.ONGOING_BATTLE,
+                        false
                 ));
             }
         } else {

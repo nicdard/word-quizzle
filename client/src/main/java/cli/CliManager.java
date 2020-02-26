@@ -78,26 +78,16 @@ public class CliManager {
                 return nextState == CliState.MAIN
                         || nextState == CliState.ONGOING_BATTLE
                         || nextState == CliState.ERROR;
-            case REQUEST_BATTLE:
-                return nextState == CliState.MAIN
-                        || nextState == CliState.ONGOING_BATTLE
-                        || nextState == CliState.ERROR;
             case ONGOING_BATTLE:
                 return nextState == CliState.ONGOING_BATTLE
                         || nextState == CliState.AFTER_BATTLE
                         || nextState == CliState.ERROR;
             case AFTER_BATTLE:
                 return nextState == CliState.MAIN
-                        || nextState == CliState.ACCEPT_BATTLE_ALERT
-                        || nextState == CliState.ERROR;
-            case ACCEPT_BATTLE_ALERT:
-                return nextState == CliState.MAIN
-                        || nextState == CliState.ONGOING_BATTLE
                         || nextState == CliState.ERROR;
             case MAIN:
                 return nextState == CliState.MAIN
-                        || nextState == CliState.REQUEST_BATTLE
-                        || nextState == CliState.ACCEPT_BATTLE_ALERT
+                        || nextState == CliState.ONGOING_BATTLE
                         || nextState == CliState.ERROR
                         || nextState == CliState.WAIT_BATTLE
                         || nextState == CliState.EXIT;

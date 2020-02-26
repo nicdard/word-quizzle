@@ -11,6 +11,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class UDPReader implements Runnable {
 
@@ -102,12 +103,12 @@ public class UDPReader implements Runnable {
     }
 
     /**
-     * Retrieves a packet, blocking.
+     * Retrieves a packet, non blocking, waits up to one second.
      * @return
      * @throws InterruptedException
      */
     public PacketPojo consumePacket() throws InterruptedException {
-        return packets.take();
+        return packets.poll(1, TimeUnit.SECONDS);
     }
 
     public boolean publishPacket(PacketPojo packetPojo) {

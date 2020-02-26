@@ -114,7 +114,7 @@ class MainClassWQServer {
         client.write(toSend);
         if (toSend.hasRemaining()) {
             // Must finish to write the response
-            client.register(selector, SelectionKey.OP_WRITE, state);
+            key.interestOps(SelectionKey.OP_WRITE);
         } else {
             state.setPacketToWrite(null);
             if (state.isMainReadSelectable()) {
@@ -122,7 +122,10 @@ class MainClassWQServer {
                         "Client registered for reading "
                                 + state.getClientNick()
                 );
-                client.register(selector, SelectionKey.OP_READ, state);
+                key.interestOps(SelectionKey.OP_READ);
+            } else {
+                // Rest interests in this selector.
+                key.interestOps(0);
             }
         }
     }
@@ -145,14 +148,11 @@ class MainClassWQServer {
             if (hasReadAllPacket) {
                 PacketPojo packet = clientConnection.buildWQPacketFromChucks();
                 configurations.Config.getInstance().debugLogger("Received packet " + packet.getOperationCode());
-                this.processCommand(packet, client, clientConnection);
+                this.processCommand(packet, key, clientConnection);
             } else {
                 // Synchronously register read interest for the client
                 // It should finish to read the request packet.
-                client.register(selector,
-                        SelectionKey.OP_READ,
-                        clientConnection
-                );
+                key.interestOps(SelectionKey.OP_READ);
             }
         }
     }
@@ -161,7 +161,7 @@ class MainClassWQServer {
         SocketChannel client = socket.accept();
         configurations.Config.getInstance().debugLogger("New Client connected!");
         client.configureBlocking(false);
-        State state = new State(client);
+        State state = new State(client, key);
         // The server will wait for client's commands
         client.register(selector, SelectionKey.OP_READ, state);
     }
@@ -178,9 +178,9 @@ class MainClassWQServer {
      */
     private void processCommand(
             final PacketPojo packet,
-            final SocketChannel client,
+            final SelectionKey client,
             final State state
-    ) throws IOException {
+    ) {
         // Checks that the packet has all the parameters expected.
         final OperationCode operationCode = packet.getOperationCode();
         if (packet.isWellFormedRequestPacket() || packet.isSuccessfullResponse()) {
@@ -192,7 +192,7 @@ class MainClassWQServer {
                         state.setPacketToWrite(new WQPacket(
                                 new PacketPojo(operationCode, ResponseCode.ERROR, "This connection is already assigned to: " + state.getClientNick()))
                         );
-                        client.register(selector, SelectionKey.OP_WRITE, state);
+                        client.interestOps(SelectionKey.OP_WRITE);
                     } else {
                         CompletableFuture.supplyAsync(() -> UserStorage.getInstance()
                                 .logInUser(packet.getNickName(), packet.getPassword())
@@ -209,7 +209,7 @@ class MainClassWQServer {
                                             ? ResponseCode.OK
                                             : ResponseCode.ERROR
                             )));
-                            this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
+                            this.asyncRegistrations.register(client, SelectionKey.OP_WRITE);
                         });
                     }
                     break;
@@ -231,7 +231,7 @@ class MainClassWQServer {
                                         ? ResponseCode.OK
                                         : ResponseCode.ERROR
                         )));
-                        this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
+                        this.asyncRegistrations.register(client, SelectionKey.OP_WRITE);
 
                         // Disconnect the client only when the client closes the socket connection.
                     });
@@ -246,7 +246,7 @@ class MainClassWQServer {
                                         ? ResponseCode.OK
                                         : ResponseCode.ERROR
                         )));
-                        this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
+                        this.asyncRegistrations.register(client, SelectionKey.OP_WRITE);
                     });
                     break;
                 case GET_FRIENDS:
@@ -256,7 +256,7 @@ class MainClassWQServer {
                         state.setPacketToWrite(new WQPacket(
                                 PacketPojo.buildGetFriendsResponse(friends)
                         ));
-                        client.register(selector, SelectionKey.OP_WRITE, state);
+                        client.interestOps(SelectionKey.OP_WRITE);
                     } catch (NoSuchElementException | IllegalArgumentException e) {
                         // Answers immediately if an exception occurs.
                         state.setPacketToWrite(new WQPacket(new PacketPojo(
@@ -264,7 +264,7 @@ class MainClassWQServer {
                                 ResponseCode.ERROR,
                                 e.getMessage()
                         )));
-                        client.register(selector, SelectionKey.OP_WRITE, state);
+                        client.interestOps(SelectionKey.OP_WRITE);
                     }
                     break;
                 case GET_SCORE:
@@ -279,7 +279,7 @@ class MainClassWQServer {
                                 ResponseCode.ERROR)
                         ));
                     }
-                    this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
+                    this.asyncRegistrations.register(client, SelectionKey.OP_WRITE);
                     break;
                 case GET_RANKING:
                     CompletableFuture.supplyAsync(() -> UserStorage.getInstance()
@@ -301,7 +301,7 @@ class MainClassWQServer {
                                     ResponseCode.ERROR
                             )));
                         }
-                        this.asyncRegistrations.register(client, SelectionKey.OP_WRITE, state);
+                        this.asyncRegistrations.register(client, SelectionKey.OP_WRITE);
                     });
                     break;
                 case REQUEST_CHALLENGE:
@@ -332,7 +332,7 @@ class MainClassWQServer {
                                 packet.getOperationCode(),
                                 ResponseCode.ERROR
                         )));
-                        client.register(selector, SelectionKey.OP_WRITE, state);
+                        client.interestOps(SelectionKey.OP_WRITE);
                     }
                     break;
                 case FORWARD_CHALLENGE:
@@ -353,7 +353,6 @@ class MainClassWQServer {
                         ChallengeHandler challenge = new ChallengeHandler(this.asyncRegistrations, sender, state.getClientNick());
                         Thread executor = new Thread(challenge);
                         executor.start();
-
                     } else {
                         // Sets error packet so that the requester does not wait till the timeout.
                         NotifierService.getInstance().setNotificationResponse(
@@ -371,18 +370,18 @@ class MainClassWQServer {
                 default:
                     System.out.println("Unhandled command! " + packet.getOperationCode());
                     // Register the client anyway.
-                    client.register(selector, SelectionKey.OP_READ, state);
+                    client.interestOps(SelectionKey.OP_READ);
             }
         } else {
             state.setPacketToWrite(new WQPacket(
                     new PacketPojo(operationCode, ResponseCode.ERROR, "Malformed request")
             ));
             configurations.Config.getInstance().debugLogger("Malformed request from " + state.getClient() + " " + packet.getOperationCode());
-            client.register(selector, SelectionKey.OP_WRITE, state);
+            client.interestOps(SelectionKey.OP_WRITE);
         }
     }
 
-    private void setup(SocketChannel client, String requester, State state, PacketPojo packet) {
+    private void setup(SelectionKey client, String requester, State state, PacketPojo packet) {
         try {
             // Waits for the response.
             WQPacket response = NotifierService.getInstance()
@@ -406,8 +405,7 @@ class MainClassWQServer {
         } finally {
             this.asyncRegistrations.register(
                     client,
-                    SelectionKey.OP_WRITE,
-                    state
+                    SelectionKey.OP_WRITE
             );
         }
     }

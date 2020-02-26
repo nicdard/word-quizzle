@@ -53,6 +53,7 @@ public class ChallengeHandler implements Runnable {
         this.timeMap = new HashMap<>(2);
         this.scores = new HashMap<>(2);
         this.ended = false;
+        this.error = false;
         try {
             selector = Selector.open();
             // Builds a dictionary for the challenge.
@@ -60,7 +61,10 @@ public class ChallengeHandler implements Runnable {
                     Config.getInstance().getWordsForChallenge()
             );
             for (String player : players) {
+                // Initialise list of words for each player.
                 this.iteratorMap.put(player, this.dictionary.keySet().iterator());
+                // Initialise scores for each player.
+                this.scores.put(player, 0);
             }
         } catch (NoSuchElementException | NullPointerException | IOException e) {
             this.error = true;
@@ -79,12 +83,13 @@ public class ChallengeHandler implements Runnable {
             for (String player : this.iteratorMap.keySet()) {
                 State state = NotifierService.getInstance()
                         .getConnection(player);
+                // Register the socket into the new selector.
                 state.getClient().register(this.selector, SelectionKey.OP_READ, state);
             }
             // Stop the challenge if either the timeout is reached or an error occurred
             // or all users have already sent all responses.
             this.start = System.currentTimeMillis() / 1000;
-            while (!ended || !error || userCompletionNumber != 2) {
+            while (!ended || error || userCompletionNumber != 2) {
                 // Every second maximum checks if the timer has expired.
                 selector.select(1000);
                 for (SelectionKey key : selector.selectedKeys()) {
@@ -104,64 +109,48 @@ public class ChallengeHandler implements Runnable {
             }
 
             if (error) {
-                for (String player : this.iteratorMap.keySet()) {
-                    State state = NotifierService.getInstance()
-                            .getConnection(player);
-                    state.setMainReadSelectable(true);
-                    state.setPacketToWrite(new WQPacket(new PacketPojo(
-                            OperationCode.STOP_CHALLENGE,
-                            ResponseCode.ERROR,
-                            "Unexpected exception"
-                    )));
-                    this.mainRegistrationQueue.register(
-                            state.getClient(),
-                            SelectionKey.OP_WRITE,
-                            state
-                    );
-                }
+                this.onError();
             } else {
                 // Compute results and send results packets.
                 List<String> ranking = this.scores.entrySet().stream()
                         .sorted(Comparator.comparing(Map.Entry::getValue))
                         .map(Map.Entry::getKey)
                         .collect(Collectors.toList());
-                if (ranking.size() >= 2) {
-                    String winner = ranking.get(0);
-                    this.scores.put(
-                            winner,
-                            this.scores.get(winner)
-                                    + Config.getInstance().getWinnerExtraPoints()
+
+                String winner = ranking.get(0);
+                this.scores.put(
+                        winner,
+                        this.scores.get(winner)
+                                + Config.getInstance().getWinnerExtraPoints()
+                );
+                // Update scores and set final message for all participants;
+                // register back to the main selector.
+                ranking.forEach(p -> {
+                    // 1. Update scores.
+                    UserStorage.getInstance().updateUserScore(
+                            p,
+                            this.scores.get(p)
                     );
-                    // Update scores and set final message for all participants;
-                    // register back to the main selector.
-                    ranking.forEach(p -> {
-                        // 1. Update scores.
-                        UserStorage.getInstance().updateUserScore(
-                                p,
-                                this.scores.get(p)
-                        );
-                        // 2. Set message.
-                        WQPacket wqPacket = new WQPacket(new PacketPojo(
-                                OperationCode.STOP_CHALLENGE,
-                                ResponseCode.OK,
-                                winner // info about who wins
-                        ));
-                        State state = NotifierService.getInstance()
-                                .getConnection(p);
-                        state.setPacketToWrite(wqPacket);
-                        // 3. Register back in the main server selector.
-                        state.setMainReadSelectable(true);
-                        this.mainRegistrationQueue.register(
-                                state.getClient(),
-                                SelectionKey.OP_WRITE,
-                                state
-                        );
-                    });
-                }
+                    // 2. Set message.
+                    WQPacket wqPacket = new WQPacket(new PacketPojo(
+                            OperationCode.STOP_CHALLENGE,
+                            ResponseCode.OK,
+                            winner // info about who wins
+                    ));
+                    State state = NotifierService.getInstance()
+                            .getConnection(p);
+                    state.setPacketToWrite(wqPacket);
+                    // 3. Register back in the main server selector.
+                    state.setMainReadSelectable(true);
+                    this.mainRegistrationQueue.register(
+                            state.getMainKey(),
+                            SelectionKey.OP_WRITE
+                    );
+                });
             }
         } catch (IOException e) {
-            // TODO
             e.printStackTrace();
+            this.onError();
         }
     }
 
@@ -171,14 +160,8 @@ public class ChallengeHandler implements Runnable {
         ByteBuffer buffer = ByteBuffer.allocate(512);
         int read = client.read(buffer);
         if (read == -1) {
-            if (clientConnection.isAssigned()) {
-                // If already online I must remove it also from the storage.
-                UserStorage.getInstance()
-                        .logOutUser(clientConnection.getClientNick());
-                NotifierService.getInstance()
-                        .removeConnection(clientConnection.getClientNick());
-                clientConnection.reset();
-            }
+            // Register in the main thread so it will deallocate the resources.
+            this.mainRegistrationQueue.register(key, SelectionKey.OP_READ);
             // Close the connection.
             client.close();
         } else {
@@ -189,23 +172,20 @@ public class ChallengeHandler implements Runnable {
             boolean hasReadAllPacket = clientConnection.addChunk(buffer);
             if (hasReadAllPacket) {
                 PacketPojo packet = clientConnection.buildWQPacketFromChucks();
-                this.processCommand(packet, client, clientConnection);
+                this.processCommand(packet, key, clientConnection);
             } else {
                 // Synchronously register read interest for the client
                 // It should finish to read the request packet.
-                client.register(selector,
-                        SelectionKey.OP_READ,
-                        clientConnection
-                );
+                key.interestOps(SelectionKey.OP_READ);
             }
         }
     }
 
 
     private void processCommand(PacketPojo packet,
-                                SocketChannel client,
+                                SelectionKey client,
                                 State state
-    ) throws ClosedChannelException {
+    ) {
         if (!packet.isSuccessfullResponse()) {
             // Exit the challenge.
             this.error = true;
@@ -216,8 +196,6 @@ public class ChallengeHandler implements Runnable {
                 Config.getInstance().debugLogger("Client " + state.getClientNick() + " has received the setup packet and is now starting the challenge!");
                 // Sets the client start time.
                 this.timeMap.put(state.getClientNick(), System.currentTimeMillis() / 1000);
-                // Initialise the scores.
-                this.scores.put(state.getClientNick(), 0);
                 // Send the next one.
                 next(state, client);
                 break;
@@ -226,17 +204,17 @@ public class ChallengeHandler implements Runnable {
                 long delta = this.timeMap.get(state.getClientNick()) - System.currentTimeMillis() / 1000;
                 if (delta < Config.getInstance().getChallengeTime()) {
                     // Checks if the translation is correct and in time; updates the user scores.
-                    List<String> translations = this.dictionary.get(state.getClientNick());
+                    List<String> translations = this.dictionary.get(packet.getWord());
                     // A translation is considered valid if any of the translations from the
                     // Translation service matches the given one.
                     boolean isRight = translations.stream()
-                            .anyMatch(t -> t.equalsIgnoreCase(packet.getWord()));
+                            .anyMatch(t -> t.equalsIgnoreCase(packet.getTranslation()));
                     int score = this.scores.get(state.getClientNick());
                     if (isRight) {
                         // Add points to the user's score.
                         score += Config.getInstance().getWordBonus();
                     } else {
-                        // Decrease the user's score.
+                        // Decrease user's score.
                         score -= Config.getInstance().getWordMalus();
                     }
                     this.scores.put(state.getClientNick(), score);
@@ -244,23 +222,23 @@ public class ChallengeHandler implements Runnable {
                     next(state, client);
                 } else {
                     // Timeout reached do not count the translation for the scores.
-                    // Do nothing.
+                    // Do nothing just set the challenge termination.
                     this.ended = true;
                 }
                 break;
             default:
                 System.out.println("Ignore other packets during challenge!");
-                client.register(selector, SelectionKey.OP_READ, state);
+                client.interestOps(SelectionKey.OP_READ);
         }
     }
 
-    private void next(State state, SocketChannel client) throws ClosedChannelException {
+    private void next(State state, SelectionKey client) {
         Iterator<String> iterator = this.iteratorMap.get(state.getClientNick());
         if (iterator.hasNext()) {
             WQPacket wqPacket = new WQPacket(PacketPojo.buildAskWordRequest(iterator.next()));
             state.setPacketToWrite(wqPacket);
             // Send the next one.
-            client.register(selector, SelectionKey.OP_WRITE, state);
+            client.interestOps(SelectionKey.OP_WRITE);
         } else {
             // Do nothing. Wait until all players have finished.
             userCompletionNumber++;
@@ -277,27 +255,32 @@ public class ChallengeHandler implements Runnable {
         client.write(toSend);
         if (toSend.hasRemaining()) {
             // Must finish to write the response
-            client.register(selector, SelectionKey.OP_WRITE, state);
+            key.interestOps(SelectionKey.OP_WRITE);
         } else {
             state.setPacketToWrite(null);
-            client.register(selector, SelectionKey.OP_READ, state);
+            key.interestOps(SelectionKey.OP_READ);
         }
     }
 
     /**
      * Cleaning method used to send an error message to every client
-     * involved in this challenge and register back all sockets in the
+     * involved in this challenge and setting back the mainKey selectable in the
      * main server selector.
      */
     private void onError() {
-
+        for (String player : this.iteratorMap.keySet()) {
+            State state = NotifierService.getInstance()
+                    .getConnection(player);
+            state.setMainReadSelectable(true);
+            state.setPacketToWrite(new WQPacket(new PacketPojo(
+                    OperationCode.STOP_CHALLENGE,
+                    ResponseCode.ERROR,
+                    "Unexpected exception"
+            )));
+            this.mainRegistrationQueue.register(
+                    state.getMainKey(),
+                    SelectionKey.OP_WRITE
+            );
+        }
     }
-
-    /**
-     * Registers the clients back in the main selector.
-     */
-    private void exit() {
-
-    }
-
 }
