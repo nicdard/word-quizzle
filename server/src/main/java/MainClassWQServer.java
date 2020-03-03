@@ -61,7 +61,7 @@ class MainClassWQServer {
         socket.bind(new InetSocketAddress(Config.TCP_PORT));
         socket.configureBlocking(false);
         selector = Selector.open();
-        asyncRegistrations = new AsyncRegistrations(selector);
+        asyncRegistrations = new AsyncRegistrations();
         socket.register(selector, SelectionKey.OP_ACCEPT);
         // Sets up udp socket.
         NotifierService.getInstance();
@@ -161,9 +161,10 @@ class MainClassWQServer {
         SocketChannel client = socket.accept();
         configurations.Config.getInstance().debugLogger("New Client connected!");
         client.configureBlocking(false);
-        State state = new State(client, key);
+        State state = new State(client);
         // The server will wait for client's commands
-        client.register(selector, SelectionKey.OP_READ, state);
+        SelectionKey clientKey = client.register(selector, SelectionKey.OP_READ, state);
+        state.setMainKey(clientKey);
     }
 
     /**

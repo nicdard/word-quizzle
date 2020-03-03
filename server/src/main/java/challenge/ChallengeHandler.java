@@ -18,6 +18,8 @@ import java.util.stream.Collectors;
 
 public class ChallengeHandler implements Runnable {
 
+    private static final int PLAYERS = 2;
+
     private static final String CHALLENGE_RULES = "You and your opponent will have " + Config.getInstance().getChallengeTime() + " seconds to translate " + Config.getInstance().getWordsForChallenge() + " words.";
 
     /**
@@ -42,16 +44,19 @@ public class ChallengeHandler implements Runnable {
     private int userCompletionNumber = 0;
     /** Maps players name into words iterators */
     private Map<String, Iterator<String>> iteratorMap;
-    /** Maps player name into their startTimes and after into their completion time */
+    /** Maps player name into his startTime and after into their completion time */
     private Map<String, Long> timeMap;
-    /** Maps player name into their temporary scores. */
+    /** Maps player name into his temporary scores. */
     private Map<String, Integer> scores;
+    /** Maps player name in selectionKey */
+    private Map<String, SelectionKey> keys;
 
     public ChallengeHandler(AsyncRegistrations mainRegistrationQueue, String ...players) {
         this.mainRegistrationQueue = mainRegistrationQueue;
-        this.iteratorMap = new HashMap<>(2);
-        this.timeMap = new HashMap<>(2);
-        this.scores = new HashMap<>(2);
+        this.iteratorMap = new HashMap<>(PLAYERS);
+        this.timeMap = new HashMap<>(PLAYERS);
+        this.scores = new HashMap<>(PLAYERS);
+        this.keys = new HashMap<>(PLAYERS);
         this.ended = false;
         this.error = false;
         try {
@@ -84,12 +89,13 @@ public class ChallengeHandler implements Runnable {
                 State state = NotifierService.getInstance()
                         .getConnection(player);
                 // Register the socket into the new selector.
-                state.getClient().register(this.selector, SelectionKey.OP_READ, state);
+                SelectionKey selectionKey = state.getClient().register(this.selector, SelectionKey.OP_READ, state);
+                this.keys.put(player, selectionKey);
             }
             // Stop the challenge if either the timeout is reached or an error occurred
             // or all users have already sent all responses.
             this.start = System.currentTimeMillis() / 1000;
-            while (!ended || error || userCompletionNumber != 2) {
+            while (!ended && !error && userCompletionNumber < PLAYERS) {
                 // Every second maximum checks if the timer has expired.
                 selector.select(1000);
                 for (SelectionKey key : selector.selectedKeys()) {
@@ -135,17 +141,10 @@ public class ChallengeHandler implements Runnable {
                     WQPacket wqPacket = new WQPacket(new PacketPojo(
                             OperationCode.STOP_CHALLENGE,
                             ResponseCode.OK,
-                            winner // info about who wins
+                            "The winner is " + winner // info about who wins
+                            + ".\nYou got " + this.scores.get(p) + " points in this challenge."
                     ));
-                    State state = NotifierService.getInstance()
-                            .getConnection(p);
-                    state.setPacketToWrite(wqPacket);
-                    // 3. Register back in the main server selector.
-                    state.setMainReadSelectable(true);
-                    this.mainRegistrationQueue.register(
-                            state.getMainKey(),
-                            SelectionKey.OP_WRITE
-                    );
+                    this.registerToMainSelector(p, wqPacket);
                 });
             }
         } catch (IOException e) {
@@ -218,13 +217,13 @@ public class ChallengeHandler implements Runnable {
                         score -= Config.getInstance().getWordMalus();
                     }
                     this.scores.put(state.getClientNick(), score);
-                    // Send the next one.
-                    next(state, client);
                 } else {
                     // Timeout reached do not count the translation for the scores.
                     // Do nothing just set the challenge termination.
                     this.ended = true;
                 }
+                // Send the next one or wait for battle to finish.
+                next(state, client);
                 break;
             default:
                 System.out.println("Ignore other packets during challenge!");
@@ -268,19 +267,27 @@ public class ChallengeHandler implements Runnable {
      * main server selector.
      */
     private void onError() {
+        final WQPacket wqPacket = new WQPacket(new PacketPojo(
+                OperationCode.STOP_CHALLENGE,
+                ResponseCode.ERROR,
+                "Unexpected exception"
+        ));
         for (String player : this.iteratorMap.keySet()) {
-            State state = NotifierService.getInstance()
-                    .getConnection(player);
-            state.setMainReadSelectable(true);
-            state.setPacketToWrite(new WQPacket(new PacketPojo(
-                    OperationCode.STOP_CHALLENGE,
-                    ResponseCode.ERROR,
-                    "Unexpected exception"
-            )));
-            this.mainRegistrationQueue.register(
-                    state.getMainKey(),
-                    SelectionKey.OP_WRITE
-            );
+            registerToMainSelector(player, wqPacket);
         }
+    }
+
+    private void registerToMainSelector(String player, WQPacket wqPacket) {
+        // Cancel the challenge thread key interests.
+        this.keys.get(player).interestOps(0);
+        // Set interests in the main key.
+        State state = NotifierService.getInstance()
+                .getConnection(player);
+        state.setMainReadSelectable(true);
+        state.setPacketToWrite(wqPacket);
+        this.mainRegistrationQueue.register(
+                state.getMainKey(),
+                SelectionKey.OP_WRITE
+        );
     }
 }

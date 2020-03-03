@@ -37,9 +37,8 @@ public class State {
     /**
      * Constructor for the host writing to UDPConnection.
      */
-    public State(SocketChannel client, SelectionKey selectionKey) {
+    public State(SocketChannel client) {
         this.client = client;
-        this.mainKey = selectionKey;
         this.isMainReadSelectable = true;
         this.packetChunks = new ArrayList<>();
     }
@@ -157,5 +156,10 @@ public class State {
 
     public SelectionKey getMainKey() {
         return mainKey;
+    }
+
+    public SelectionKey setMainKey(SelectionKey key) {
+        this.mainKey = key;
+        return this.mainKey;
     }
 }

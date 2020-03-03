@@ -211,7 +211,7 @@ public class NotifierService {
             try {
                 Thread.sleep(timeoutMillis);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                System.out.println("Challenge Notification timeout expired for request by " + sender);
             }
             return new WQPacket(new PacketPojo(
                     op,
