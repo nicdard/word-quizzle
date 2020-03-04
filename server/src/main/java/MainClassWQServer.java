@@ -348,7 +348,7 @@ class MainClassWQServer {
                                         ChallengeHandler.getChallengeRules()
                                 ))
                         );
-                        System.out.println("Accepted " + state.getClientNick() + " " + sender);
+                        configurations.Config.getInstance().debugLogger("Accepted " + state.getClientNick() + " " + sender);
                         this.setup(client, sender, state, packet);
                         // Run the challenge thread.
                         ChallengeHandler challenge = new ChallengeHandler(this.asyncRegistrations, sender, state.getClientNick());

@@ -31,7 +31,7 @@ public class LogoutProcessor extends BaseInputProcessor {
             PacketPojo response = TCPHandler.getInstance().handle(new WQPacket(
                     new PacketPojo(OperationCode.LOGOUT)
             ));
-            this.prettyPrint(response);
+            this.validateOrPrettyPrintErrorResponse(response);
             if (response.isSuccessfullResponse()) Prompt.setPrompt(null);
             CliManager.getInstance().setNext(new Prompt(
                     Prompt.MAIN_PROMPT,
@@ -44,8 +44,8 @@ public class LogoutProcessor extends BaseInputProcessor {
     }
 
     @Override
-    protected boolean prettyPrint(PacketPojo response) {
-        if (super.prettyPrint(response)) System.out.println("You successfully logged-out. Come back soon!");
+    protected boolean validateOrPrettyPrintErrorResponse(PacketPojo response) {
+        if (super.validateOrPrettyPrintErrorResponse(response)) System.out.println("You successfully logged-out. Come back soon!");
         return true;
     }
 }

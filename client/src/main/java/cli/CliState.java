@@ -5,6 +5,5 @@ public enum CliState {
     EXIT,
     MAIN,
     WAIT_BATTLE,
-    ONGOING_BATTLE,
-    AFTER_BATTLE
+    ONGOING_BATTLE
 }

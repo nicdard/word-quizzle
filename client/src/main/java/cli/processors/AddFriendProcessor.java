@@ -32,7 +32,7 @@ public class AddFriendProcessor extends BaseInputProcessor {
             PacketPojo response = TCPHandler.getInstance().handle(new WQPacket(
                     PacketPojo.buildAddFriendRequest(params[1])
             ));
-            this.prettyPrint(response);
+            this.validateOrPrettyPrintErrorResponse(response);
             CliManager.getInstance().setNext(new Prompt(
                     Prompt.MAIN_PROMPT,
                     BaseInputProcessor.getMainDispatcher(),
@@ -44,8 +44,8 @@ public class AddFriendProcessor extends BaseInputProcessor {
     }
 
     @Override
-    protected boolean prettyPrint(PacketPojo response) {
-        if (super.prettyPrint(response))
+    protected boolean validateOrPrettyPrintErrorResponse(PacketPojo response) {
+        if (super.validateOrPrettyPrintErrorResponse(response))
             System.out.println("You now have a new friend! :)");
         return true;
     }

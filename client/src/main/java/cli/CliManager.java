@@ -80,10 +80,7 @@ public class CliManager {
                         || nextState == CliState.ERROR;
             case ONGOING_BATTLE:
                 return nextState == CliState.ONGOING_BATTLE
-                        || nextState == CliState.AFTER_BATTLE
-                        || nextState == CliState.ERROR;
-            case AFTER_BATTLE:
-                return nextState == CliState.MAIN
+                        || nextState == CliState.MAIN
                         || nextState == CliState.ERROR;
             case MAIN:
                 return nextState == CliState.MAIN

@@ -14,7 +14,7 @@ import java.io.IOException;
 public abstract class SetupBattleProcessor extends BaseInputProcessor {
 
     protected void setupBattle(PacketPojo response) throws IOException {
-        if (this.prettyPrint(response)) {
+        if (this.validateOrPrettyPrintErrorResponse(response)) {
             // Display information about the challenge.
             System.out.println(response.getMessage());
             TCPHandler.getInstance().send(new WQPacket(

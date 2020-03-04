@@ -1,5 +1,6 @@
 package translation;
 
+import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 
 /**
@@ -20,7 +21,6 @@ public class TranslationSupplier implements Supplier<Translation> {
         try {
             return new Translation(word, chain.translate(word));
         } catch (UnavailableTranslationException e) {
-            e.printStackTrace();
             throw new RuntimeException(e);
         }
     }

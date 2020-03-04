@@ -43,12 +43,20 @@ public class AskWordProcessor extends BaseInputProcessor {
                         false
                 ));
             } else {
-                System.out.println("EHI that's " + packetPojo.getOperationCode().name());
-                CliManager.getInstance().setNext(new Prompt(
-                        Prompt.EXITING,
-                        null,
-                        CliState.ERROR
-                ));
+                if (this.validateOrPrettyPrintErrorResponse(packetPojo)) {
+                    System.out.println(packetPojo.getMessage());
+                    CliManager.getInstance().setNext(new Prompt(
+                            Prompt.MAIN_PROMPT,
+                            BaseInputProcessor.getMainDispatcher(),
+                            CliState.MAIN
+                    ));
+                } else {
+                    CliManager.getInstance().setNext(new Prompt(
+                            Prompt.EXITING,
+                            null,
+                            CliState.ERROR
+                    ));
+                }
             }
         } else {
             super.process(input);

@@ -106,6 +106,7 @@ public class NotifierService {
             throws IOException, NoSuchElementException
     {
         // Only one request per sender at a time is allowed.
+        // TODO PutIfAbsent
         if (this.connectionTable.get(dest) == null
             || this.connectionTable.get(sender) == null
             || this.pendingResponses.get(sender) != null

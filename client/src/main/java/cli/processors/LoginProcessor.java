@@ -6,7 +6,6 @@ import cli.Prompt;
 
 import protocol.Config;
 import connection.TCPHandler;
-import protocol.OperationCode;
 import protocol.WQPacket;
 import protocol.json.PacketPojo;
 
@@ -41,7 +40,7 @@ public class LoginProcessor extends BaseInputProcessor {
                             LoginProcessor.UDPPort
                     )
             ));
-            this.prettyPrint(response);
+            this.validateOrPrettyPrintErrorResponse(response);
             if (response.isSuccessfullResponse()) Prompt.setPrompt(params[1]);
             CliManager.getInstance().setNext(new Prompt(
                     Prompt.MAIN_PROMPT,
@@ -58,8 +57,8 @@ public class LoginProcessor extends BaseInputProcessor {
     }
 
     @Override
-    protected boolean prettyPrint(PacketPojo response) {
-        if (super.prettyPrint(response)) System.out.println("You are now logged-in!");
+    protected boolean validateOrPrettyPrintErrorResponse(PacketPojo response) {
+        if (super.validateOrPrettyPrintErrorResponse(response)) System.out.println("You are now logged-in!");
         return true;
     }
 }

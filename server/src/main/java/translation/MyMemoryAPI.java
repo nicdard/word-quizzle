@@ -78,7 +78,6 @@ public class MyMemoryAPI extends BaseTranslationService {
                 super.translate(word);
             }
         } catch (IOException e) {
-            e.printStackTrace();
             return super.translate(word);
         }
         return null;

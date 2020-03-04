@@ -82,7 +82,7 @@ public class Config {
      * Configures the maximum time for a request in ms.
      * Default: 10s
      */
-    private int challengeRequestTimeout = 100000;
+    private int challengeRequestTimeout = 10000;
     /**
      * Configures the time given to a user to complete a challenge in seconds.
      * Default: 140s -> with default config (20 words): 7s per word.

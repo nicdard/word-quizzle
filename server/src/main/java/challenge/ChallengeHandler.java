@@ -50,9 +50,12 @@ public class ChallengeHandler implements Runnable {
     private Map<String, Integer> scores;
     /** Maps player name in selectionKey */
     private Map<String, SelectionKey> keys;
+    /** The list of the players for this challenge */
+    private String[] players;
 
     public ChallengeHandler(AsyncRegistrations mainRegistrationQueue, String ...players) {
         this.mainRegistrationQueue = mainRegistrationQueue;
+        this.players = players; // Save it for error handling.
         this.iteratorMap = new HashMap<>(PLAYERS);
         this.timeMap = new HashMap<>(PLAYERS);
         this.scores = new HashMap<>(PLAYERS);
@@ -72,6 +75,7 @@ public class ChallengeHandler implements Runnable {
                 this.scores.put(player, 0);
             }
         } catch (NoSuchElementException | NullPointerException | IOException e) {
+            Config.getInstance().debugLogger(e.getMessage());
             this.error = true;
         }
     }
@@ -82,10 +86,12 @@ public class ChallengeHandler implements Runnable {
 
     @Override
     public void run() {
+        // If an error occurred  while initialising.
+        if (this.error) this.onError();
         try {
             // Read the setup packet responses to synchronize the clients before challenge start
             // and be sure that the previous ongoing main packet has been written to both.
-            for (String player : this.iteratorMap.keySet()) {
+            for (String player : this.players) {
                 State state = NotifierService.getInstance()
                         .getConnection(player);
                 // Register the socket into the new selector.
@@ -272,14 +278,17 @@ public class ChallengeHandler implements Runnable {
                 ResponseCode.ERROR,
                 "Unexpected exception"
         ));
-        for (String player : this.iteratorMap.keySet()) {
+        // Use players to be sure no one is missing.
+        // Note: It is really the array of players given by the constructor.
+        for (String player : this.players) {
             registerToMainSelector(player, wqPacket);
         }
     }
 
     private void registerToMainSelector(String player, WQPacket wqPacket) {
-        // Cancel the challenge thread key interests.
-        this.keys.get(player).interestOps(0);
+        // Cancel the challenge thread key interests if already registered.
+        SelectionKey key = this.keys.get(player);
+        if (key != null) key.interestOps(0);
         // Set interests in the main key.
         State state = NotifierService.getInstance()
                 .getConnection(player);

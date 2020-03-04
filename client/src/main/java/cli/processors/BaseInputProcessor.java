@@ -49,11 +49,11 @@ public abstract class BaseInputProcessor implements InputProcessor {
     }
 
     /**
-     * Validates a response and if an error occurred it prints an error message.
+     * Validates a response and if an error occurred prints an error message.
      * @param response
      * @return
      */
-    protected boolean prettyPrint(PacketPojo response) {
+    protected boolean validateOrPrettyPrintErrorResponse(PacketPojo response) {
         if (response.isSuccessfullResponse()) {
             return true;
         } else {
