@@ -18,6 +18,6 @@ public class RankingListItem implements Comparable<RankingListItem> {
 
     @Override
     public int compareTo(RankingListItem rankingListItem) {
-        return this.score - rankingListItem.score;
+        return rankingListItem.score - this.score;
     }
 }

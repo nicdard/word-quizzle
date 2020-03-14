@@ -13,34 +13,18 @@ import java.io.IOException;
 public class LogoutProcessor extends BaseInputProcessor {
 
     LogoutProcessor() {
+        this.commandName = "logout";
         this.expectedParameters = 1;
     }
 
     @Override
-    public boolean validate(String input) {
-        if (super.validate(input)) {
-            return input.equalsIgnoreCase("logout");
-        } else {
-            return false;
-        }
-    }
-
-    @Override
-    public void process(String input) throws InputProcessorException, IOException {
-        if (this.validate(input)) {
-            PacketPojo response = TCPHandler.getInstance().handle(new WQPacket(
-                    new PacketPojo(OperationCode.LOGOUT)
-            ));
-            this.validateOrPrettyPrintErrorResponse(response);
-            if (response.isSuccessfullResponse()) Prompt.setPrompt(null);
-            CliManager.getInstance().setNext(new Prompt(
-                    Prompt.MAIN_PROMPT,
-                    BaseInputProcessor.getMainDispatcher(),
-                    CliState.MAIN
-            ));
-        } else {
-            super.process(input);
-        }
+    public void process(String input) throws IOException {
+        PacketPojo response = TCPHandler.getInstance().handle(new WQPacket(
+                new PacketPojo(OperationCode.LOGOUT)
+        ));
+        this.validateOrPrettyPrintErrorResponse(response);
+        if (response.isSuccessfullResponse()) Prompt.setPrompt(null);
+        CliManager.getInstance().setNext(Prompt.MAIN_PROMPT);
     }
 
     @Override

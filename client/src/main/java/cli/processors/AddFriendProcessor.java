@@ -12,35 +12,18 @@ import java.io.IOException;
 public class AddFriendProcessor extends BaseInputProcessor {
 
     AddFriendProcessor() {
+        this.commandName = "add-friend";
         this.expectedParameters = 2;
     }
 
     @Override
-    public boolean validate(String input) {
-        if (super.validate(input)) {
-            String[] params = input.split(" ");
-            return params[0].equalsIgnoreCase("add-friend");
-        } else {
-            return false;
-        }
-    }
-
-    @Override
-    public void process(String input) throws InputProcessorException, IOException {
-        if (this.validate(input)) {
-            String[] params = input.split(" ");
-            PacketPojo response = TCPHandler.getInstance().handle(new WQPacket(
-                    PacketPojo.buildAddFriendRequest(params[1])
-            ));
-            this.validateOrPrettyPrintErrorResponse(response);
-            CliManager.getInstance().setNext(new Prompt(
-                    Prompt.MAIN_PROMPT,
-                    BaseInputProcessor.getMainDispatcher(),
-                    CliState.MAIN
-            ));
-        } else {
-            super.process(input);
-        }
+    public void process(String input) throws IOException {
+        String[] params = input.split(" ");
+        PacketPojo response = TCPHandler.getInstance().handle(new WQPacket(
+                PacketPojo.buildAddFriendRequest(params[1])
+        ));
+        this.validateOrPrettyPrintErrorResponse(response);
+        CliManager.getInstance().setNext(Prompt.MAIN_PROMPT);
     }
 
     @Override

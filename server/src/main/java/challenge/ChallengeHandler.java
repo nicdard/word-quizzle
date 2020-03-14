@@ -89,7 +89,10 @@ public class ChallengeHandler implements Runnable {
     @Override
     public void run() {
         // If an error occurred  while initialising.
-        if (this.error) this.onError();
+        if (this.error) {
+            this.onError();
+            return;
+        }
         try {
             // Read the setup packet responses to synchronize the clients before challenge start
             // and be sure that the previous ongoing main packet has been written to both.
@@ -121,6 +124,9 @@ public class ChallengeHandler implements Runnable {
                 }
                 selector.selectedKeys().clear();
                 ended = System.currentTimeMillis() / 1000 - start > Config.getInstance().getChallengeTime();
+                if (ended) {
+                    this.players.forEach(p -> this.timeMap.putIfAbsent(p, System.currentTimeMillis()));
+                }
             }
 
             if (error) {
@@ -128,7 +134,12 @@ public class ChallengeHandler implements Runnable {
             } else {
                 // Compute results and send results packets.
                 List<String> ranking = this.scores.entrySet().stream()
-                        .sorted(Comparator.comparing(Map.Entry::getValue))
+                        .sorted((e1, e2) -> {
+                            int orderByScore = e2.getValue().compareTo(e1.getValue());
+                            if (orderByScore == 0) {
+                                return this.timeMap.get(e2.getKey()).compareTo(this.timeMap.get(e1.getKey()));
+                            } else return orderByScore;
+                        })
                         .map(Map.Entry::getKey)
                         .collect(Collectors.toList());
 
@@ -202,14 +213,12 @@ public class ChallengeHandler implements Runnable {
         switch (packet.getOperationCode()) {
             case SETUP_CHALLENGE: {
                 Config.getInstance().debugLogger("Client " + state.getClientNick() + " has received the setup packet and is now starting the challenge!");
-                // Sets the client start time.
-                this.timeMap.put(state.getClientNick(), System.currentTimeMillis() / 1000);
                 // Send the next one.
                 next(state, client);
                 break;
             }
             case ASK_WORD:
-                long delta = this.timeMap.get(state.getClientNick()) - System.currentTimeMillis() / 1000;
+                long delta = this.start - System.currentTimeMillis() / 1000;
                 if (delta < Config.getInstance().getChallengeTime()) {
                     // Checks if the translation is correct and in time; updates the user scores.
                     List<String> translations = this.dictionary.get(packet.getWord());
@@ -250,9 +259,8 @@ public class ChallengeHandler implements Runnable {
         } else {
             // Do nothing. Wait until all players have finished.
             userCompletionNumber++;
-            this.timeMap.put(state.getClientNick(),
-                    System.currentTimeMillis() / 1000 - this.timeMap.get(state.getClientNick())
-            );
+            // Sets client completion time.
+            this.timeMap.put(state.getClientNick(), System.currentTimeMillis());
         }
     }
 

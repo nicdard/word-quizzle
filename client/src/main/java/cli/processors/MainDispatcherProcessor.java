@@ -18,20 +18,20 @@ public class MainDispatcherProcessor extends BaseInputProcessor {
     }
 
     @Override
-    public boolean validate(String input) {
+    public InputProcessor validate(String input) throws InputProcessorException {
         String[] rawChunks = input.split(" ");
         this.toDispatch = rawChunks[0];
-        return COMMANDS.containsKey(rawChunks[0].trim());
+        if (COMMANDS.containsKey(rawChunks[0].trim())) {
+            return this;
+        } else {
+            throw new InputProcessorException("Unknown command! " + rawChunks[0]);
+        }
     }
 
     @Override
     public void process(String input) throws InputProcessorException, IOException {
-        if (this.validate(input)) {
-            // Calls the right processor if known.
-            COMMANDS.get(this.toDispatch).process(input);
-        } else {
-            super.process(input);
-        }
+        // Calls the right processor if known.
+        COMMANDS.get(this.toDispatch).validate(input).process(input);
     }
 
     private static Map<String, InputProcessor> commandMapGenerator() {

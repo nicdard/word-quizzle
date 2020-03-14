@@ -1,8 +1,10 @@
 package configurations;
 
+import protocol.WQPacket;
 import storage.Policy;
 
 import java.io.File;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 /**
@@ -54,12 +56,12 @@ public class Config {
      * Configures the write/read access policy to the file system
      * only for those information that are not considered prioritised,
      * which are stored immediately (ex. registration info).
-     * Default: IMMEDIATELY
+     * Default: ON_SESSION_CLOSE
      * Accepted values for this option:
      *  - IMMEDIATELY
      *  - ON_SESSION_CLOSE
      */
-    private Policy storageAccessPolicy = Policy.IMMEDIATELY;
+    private Policy storageAccessPolicy = Policy.ON_SESSION_CLOSE;
     /**
      * Configures the path to be used for the storage. Use relative paths.
      * Default: ${MODULE_WORKING_DIR}/internal
@@ -78,17 +80,17 @@ public class Config {
      * Configures the number of words to translate in a challenge.
      * Default: 20
      */
-    private int wordsForChallenge = 20;
+    private int wordsForChallenge = 10;
     /**
      * Configures the maximum time for a request in ms.
-     * Default: 10s
+     * Default: 5s
      */
-    private int challengeRequestTimeout = 10000;
+    private int challengeRequestTimeout = 5000;
     /**
      * Configures the time given to a user to complete a challenge in seconds.
-     * Default: 140s -> with default config (20 words): 7s per word.
+     * Default: 50s -> with default config (10 words): 5s per word.
      */
-    private int challengeTime = 140;
+    private int challengeTime = 50;
     /**
      * Configures the points gained by an user when a correct answer is provided.
      */
@@ -100,7 +102,7 @@ public class Config {
     /**
      * Configures the additional points gained by an user when winning a challenge.
      */
-    private int winnerExtraPoints = 3;
+    private int winnerExtraPoints = 5;
 
     /**
      * Parses the command line arguments and initialise the config fields.
@@ -134,10 +136,6 @@ public class Config {
                 case "-useISODestinationLang":
                     ISODestinationLanguage = rawValue;
                     break;
-               /* case "-storageThreads":
-                    int n = Integer.parseInt(rawValue);
-                    storageThreads = n > 1 ? n : storageThreads;
-                    break;*/
                 case "-useStoragePolicy":
                     storageAccessPolicy = Policy.valueOf(rawValue);
                     break;
@@ -244,5 +242,19 @@ public class Config {
                     .orElse("")
             )
         );
+    }
+
+    /**
+     * Tries to deserialize a packet from a byteBuffer and prints out the operation code.
+     * @param byteBuffer
+     */
+    public void debugLogger(ByteBuffer byteBuffer) {
+        try {
+            this.debugLogger(WQPacket.fromBytes(byteBuffer).getOperationCode().name());
+        } catch (Exception e) {
+            this.debugLogger(e);
+        } finally {
+            byteBuffer.rewind();
+        }
     }
 }

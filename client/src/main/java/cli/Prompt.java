@@ -10,9 +10,8 @@ import java.io.InputStreamReader;
 
 public class Prompt {
 
-    public static final String DEFAULT_PROMPT = "> ";
-    public static String PROMPT = DEFAULT_PROMPT;
-    public static final String MAIN_PROMPT = "\n[help]\n";
+    private static final String DEFAULT_PROMPT = "> ";
+    private static String PROMPT = DEFAULT_PROMPT;
     public static final String READER = "";
     public static final String EXITING = "\n===========\nExiting...\nPlease press enter to complete.\n";
     public static final String HELP = "\nAvailable Commands:" +
@@ -26,8 +25,14 @@ public class Prompt {
             "\n - show-ranking-list: shows the ranking list including only you and your friends" +
             "\n - wait-challenge" +
             "\n - exit\n";
-    public static final String WORD_MACRO = "${WORD}";
-    public static final String ASK_WORD = WORD_MACRO + " " + DEFAULT_PROMPT;
+    private static final String WORD_MACRO = "${WORD}";
+    private static final String ASK_WORD = WORD_MACRO + " " + DEFAULT_PROMPT;
+
+    public static final Prompt MAIN_PROMPT = new Prompt(
+            "\n[help]\n",
+            BaseInputProcessor.getMainDispatcher(),
+            CliState.MAIN
+    );
 
     // The prompt reader instance.
     private static BufferedReader reader = new BufferedReader(
@@ -35,16 +40,16 @@ public class Prompt {
     );
 
     private String prompt;
-    private InputProcessor processorChain;
+    private InputProcessor processor;
 
     private CliState executionState;
     private boolean shouldPrintPrompt;
 
-    public Prompt(String prompt, InputProcessor chain, CliState state) {
+    public Prompt(String prompt, InputProcessor processor, CliState state) {
         if (prompt == null || state == null)
             throw new IllegalArgumentException("Should not be null");
         this.prompt = prompt;
-        this.processorChain = chain;
+        this.processor = processor;
         this.executionState = state;
         this.shouldPrintPrompt = true;
     }
@@ -61,18 +66,14 @@ public class Prompt {
 
     public void execute() throws IOException {
         printPrompt();
-        String input = reader.readLine();
-        if (processorChain != null) {
+        String input = reader.readLine().trim();
+        if (processor != null) {
             try {
-                processorChain.process(input.trim());
+                // Validate and process the input.
+                processor.validate(input).process(input);
             } catch (InputProcessorException e) {
-                System.out.println("Unrecognised command: " + input.trim());
-                CliManager.getInstance().setNext(
-                        new Prompt(MAIN_PROMPT,
-                                BaseInputProcessor.getMainDispatcher(),
-                                CliState.MAIN
-                        )
-                );
+                System.out.println(e.getMessage());
+                CliManager.getInstance().setNext(MAIN_PROMPT);
             } catch (IOException e) {
                 CliManager.getInstance().setNext(new Prompt(
                         "[ERROR] IOError, An unexpected communication error occurred\n" + Prompt.EXITING,

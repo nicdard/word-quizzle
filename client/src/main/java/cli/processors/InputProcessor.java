@@ -5,10 +5,11 @@ import java.io.IOException;
 public interface InputProcessor {
 
     /**
-     * @return true if this packetProcessor can be applied
-     * and the parameters are valid.
+     * @throws InputProcessorException if this packetProcessor cannot be applied
+     * or the parameters are not valid.
+     * @return InputProcessor to enable dot concatenation.
      */
-    boolean validate(String input);
+    InputProcessor validate(String input) throws InputProcessorException;
 
     /**
      * Process the given input if possible.

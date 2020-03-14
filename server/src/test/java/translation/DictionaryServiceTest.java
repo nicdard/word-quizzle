@@ -30,19 +30,25 @@ public class DictionaryServiceTest {
         return dictionary;
     }
 
+    Map<String, List<String>> requestWordsTranslation(int n) {
+        Map<String, List<String>> dictionary = dictionaryService.getDictionary(n);
+        boolean hasTranslatedAll = dictionary.size() == n;
+        Assertions.assertTrue(hasTranslatedAll);
+        dictionary.forEach((key, value) -> System.out.println(key + " " + value));
+        return dictionary;
+    }
+
     @Test
     void parallelRequestsTest() throws ExecutionException, InterruptedException {
          // Executes in parallel
          CompletableFuture future1 = CompletableFuture
-                .runAsync(this::requestWordsTranslation);
-         CompletableFuture future2 = CompletableFuture
-                .runAsync(this::requestWordsTranslation);
-         CompletableFuture future3 = CompletableFuture
-                .runAsync(this::requestWordsTranslation);
-         CompletableFuture.allOf(future1, future2, future3).get();
-         // The three dictionaries should be equals
-         Assertions.assertEquals(future1.get(), future2.get());
-         Assertions.assertEquals(future1.get(), future3.get());
-         Assertions.assertEquals(future3.get(), future2.get());
+                .supplyAsync(this::requestWordsTranslation);
+        CompletableFuture future2 = CompletableFuture
+                .supplyAsync(this::requestWordsTranslation);
+        CompletableFuture future3 = CompletableFuture
+                .supplyAsync(() -> this.requestWordsTranslation(10));
+        CompletableFuture.allOf(future1, future2, future3).get();
+        // The three dictionaries should be equals
+        Assertions.assertEquals(future1.get(), future2.get());
     }
 }

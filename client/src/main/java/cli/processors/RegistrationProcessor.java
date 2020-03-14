@@ -6,7 +6,6 @@ import cli.CliManager;
 import cli.CliState;
 import cli.Prompt;
 
-import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -16,67 +15,39 @@ public class RegistrationProcessor extends BaseInputProcessor {
 
     static RegistrationRemoteService service;
 
-    private String nickName;
-    private String password;
-
     RegistrationProcessor() {
+        this.commandName = "register";
         this.expectedParameters = 3; // One is the command name
     }
 
-    /**
-     * @param input
-     * @return true if the provided password has at least 4 characters.
-     * @modifies sets nickname and password
-     */
     @Override
-    public boolean validate(String input) {
-        if (super.validate(input)) {
-            String[] rawValues = input.split(" ");
-            String command = rawValues[0];
-            this.nickName = rawValues[1];
-            this.password = rawValues[2];
-            return command.equalsIgnoreCase("register")
-                    && password.length() >= 4;
-        }
-        return false;
-    }
-
-    @Override
-    public void process(String input) throws InputProcessorException, IOException {
-        if (this.validate(input)) {
-            try {
-                RegistrationResponseStatusCode responseCode =
-                    RegistrationProcessor.getRegistrationService()
-                            .addUser(nickName, password);
-                switch (responseCode) {
-                    case OK:
-                        System.out.println("You successfully complete the registration to WQ!");
-                        break;
-                    case INVALID_NICK_ERROR:
-                        System.out.println("The provided nick is invalid");
-                        break;
-                    case INVALID_PASSWORD_ERROR:
-                        System.out.println("The password must be at least 4 character long");
-                        break;
-                    case NICK_ALREADY_REGISTERED_ERROR:
-                        System.out.println("The nickname is already registered to WQ :(");
-                        break;
-                    case INTERNAL_ERROR:
-                    default:
-                        System.out.println("The server has experienced an internal error");
-                        break;
-                }
-                CliManager.getInstance().setNext(new Prompt(
-                        Prompt.MAIN_PROMPT,
-                        BaseInputProcessor.getMainDispatcher(),
-                        CliState.MAIN
-                ));
-            } catch (RemoteException | NotBoundException e) {
-                e.printStackTrace();
-                throw new InputProcessorException("Registration service is unreachable!");
+    public void process(String input) throws InputProcessorException {
+        String[] rawValues = input.split(" ");
+        try {
+            RegistrationResponseStatusCode responseCode =
+                RegistrationProcessor.getRegistrationService()
+                        .addUser(rawValues[1], rawValues[2]);
+            switch (responseCode) {
+                case OK:
+                    System.out.println("You successfully complete the registration to WQ!");
+                    break;
+                case INVALID_NICK_ERROR:
+                    System.out.println("The provided nick is invalid");
+                    break;
+                case INVALID_PASSWORD_ERROR:
+                    System.out.println("The password must be at least 4 character long");
+                    break;
+                case NICK_ALREADY_REGISTERED_ERROR:
+                    System.out.println("The nickname is already registered to WQ :(");
+                    break;
+                case INTERNAL_ERROR:
+                default:
+                    System.out.println("The server has experienced an internal error");
+                    break;
             }
-        } else {
-            super.process(input);
+            CliManager.getInstance().setNext(Prompt.MAIN_PROMPT);
+        } catch (RemoteException | NotBoundException e) {
+            throw new InputProcessorException("Registration service is unreachable!");
         }
     }
 

@@ -6,6 +6,7 @@ import java.util.concurrent.*;
  * Singletons that manages reading from the std_input in either a blocking and
  * a non-blocking way.
  */
+@Deprecated
 public class CliTemporizedReader {
 
     private final int timeout = 1;

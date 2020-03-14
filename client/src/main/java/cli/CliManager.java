@@ -14,11 +14,7 @@ public class CliManager {
     private static CliManager instance = getInstance();
     private CliManager() {
         // Initial prompt.
-        next = new Prompt(
-                Prompt.MAIN_PROMPT,
-                BaseInputProcessor.getMainDispatcher(),
-                CliState.MAIN
-        );
+        next = Prompt.MAIN_PROMPT;
         state = CliState.MAIN;
     }
     public static CliManager getInstance() {

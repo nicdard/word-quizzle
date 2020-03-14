@@ -25,11 +25,7 @@ public abstract class SetupBattleProcessor extends BaseInputProcessor {
             PacketPojo packetPojo = TCPHandler.getInstance().receive();
             if (packetPojo.isErrorResponse()) {
                 System.out.println("Unfortunately an unexpected error occurred during battle setup.");
-                CliManager.getInstance().setNext(new Prompt(
-                        Prompt.MAIN_PROMPT,
-                        BaseInputProcessor.getMainDispatcher(),
-                        CliState.MAIN
-                ));
+                CliManager.getInstance().setNext(Prompt.MAIN_PROMPT);
             } else {
                 System.out.println("You can press enter to skip the word if you don't know the translation.");
                 CliManager.getInstance().setNext(new Prompt(
@@ -40,11 +36,7 @@ public abstract class SetupBattleProcessor extends BaseInputProcessor {
                 ));
             }
         } else {
-            CliManager.getInstance().setNext(new Prompt(
-                    Prompt.MAIN_PROMPT,
-                    BaseInputProcessor.getMainDispatcher(),
-                    CliState.MAIN
-            ));
+            CliManager.getInstance().setNext(Prompt.MAIN_PROMPT);
         }
     }
 }

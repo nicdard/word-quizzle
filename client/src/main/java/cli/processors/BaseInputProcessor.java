@@ -2,31 +2,29 @@ package cli.processors;
 
 import protocol.json.PacketPojo;
 
-import java.io.IOException;
-
 public abstract class BaseInputProcessor implements InputProcessor {
 
     protected int expectedParameters = 0;
+    protected String commandName;
 
     private static InputProcessor mainDispatcher;
 
     /**
      * @param input
-     * @return true if the input string contains the expected amount
+     * @return this if the input string contains the expected amount
      * of parameters. Finest checks are performed by the specialized
      * processors.
      */
     @Override
-    public boolean validate(String input) {
-        if (input == null || input.isEmpty()) return false;
+    public InputProcessor validate(String input) throws InputProcessorException {
+        if (input == null) throw new InputProcessorException("Illegal argument.");
         String[] rawParameters = input.split(" ");
-        return rawParameters.length == this.expectedParameters;
-    }
-
-    @Override
-    public void process(String input) throws InputProcessorException, IOException {
-        // None can handle this input.
-        throw new InputProcessorException(input);
+        if (rawParameters.length == this.expectedParameters
+            && (rawParameters[0].equalsIgnoreCase(commandName)
+                || commandName == null)
+        ) {
+            return this;
+        } else throw new InputProcessorException("Some parameters are wrong or missing.");
     }
 
     public static InputProcessor getMainDispatcher() {

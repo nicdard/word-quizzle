@@ -13,34 +13,18 @@ import java.io.IOException;
 public class ScoreProcessor extends BaseInputProcessor {
 
     ScoreProcessor() {
+        this.commandName = "show-score";
         this.expectedParameters = 1;
     }
 
     @Override
-    public boolean validate(String input) {
-        if (super.validate(input)) {
-            return input.equalsIgnoreCase("show-score");
-        } else {
-            return false;
+    public void process(String input) throws IOException {
+        PacketPojo response = TCPHandler.getInstance().handle(new WQPacket(
+                new PacketPojo(OperationCode.GET_SCORE)
+        ));
+        if (response.isSuccessfullResponse()) {
+            System.out.println(response.getScores());
         }
-    }
-
-    @Override
-    public void process(String input) throws InputProcessorException, IOException {
-        if (this.validate(input)) {
-            PacketPojo response = TCPHandler.getInstance().handle(new WQPacket(
-                    new PacketPojo(OperationCode.GET_SCORE)
-            ));
-            if (response.isSuccessfullResponse()) {
-                System.out.println(response.getScores());
-            }
-            CliManager.getInstance().setNext(new Prompt(
-                    Prompt.MAIN_PROMPT,
-                    BaseInputProcessor.getMainDispatcher(),
-                    CliState.MAIN
-            ));
-        } else {
-            super.process(input);
-        }
+        CliManager.getInstance().setNext(Prompt.MAIN_PROMPT);
     }
 }

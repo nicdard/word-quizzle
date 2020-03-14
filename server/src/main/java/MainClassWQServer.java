@@ -102,6 +102,7 @@ class MainClassWQServer {
         State state = (State) key.attachment();
         configurations.Config.getInstance().debugLogger("Write for client " + state.getClientNick());
         ByteBuffer toSend = state.getPacketToWrite();
+        configurations.Config.getInstance().debugLogger(toSend);
         client.write(toSend);
         if (toSend.hasRemaining()) {
             // Must finish to write the response
