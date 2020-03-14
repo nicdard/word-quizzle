@@ -7,7 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -87,25 +87,25 @@ public class DictionaryService {
      * @return a map from word to translations.
      */
     public Map<String, List<String>> getDictionary(Set<String> words) throws NoSuchElementException {
-        List<CompletableFuture<Translation>> promises = words.stream()
-                .filter(word -> word != null && !word.isEmpty())
-                .map(word -> CompletableFuture.supplyAsync(new TranslationSupplier(word)))
-                .collect(Collectors.toList());
-        CompletableFuture<List<Translation>> translationsMapping =
-                CompletableFuture.allOf(
-                        promises.toArray(new CompletableFuture[0])
-                ).thenApply(v -> promises.stream()
-                        .map(CompletableFuture::join)
-                        .collect(Collectors.toList())
-                );
         try {
+            List<CompletableFuture<Translation>> promises = words.stream()
+                    .filter(word -> word != null && !word.isEmpty())
+                    .map(word -> CompletableFuture.supplyAsync(new TranslationSupplier(word)))
+                    .collect(Collectors.toList());
+            CompletableFuture<List<Translation>> translationsMapping =
+                    CompletableFuture.allOf(
+                            promises.toArray(new CompletableFuture[0])
+                    ).thenApply(v -> promises.stream()
+                            .map(CompletableFuture::join)
+                            .collect(Collectors.toList())
+                    );
             Map<String, List<String>> dictionary = new HashMap<>();
             translationsMapping.get().forEach(t ->
                     dictionary.put(t.getSourceWord(), t.getTranslations())
             );
             return dictionary;
-        } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
+        } catch (CompletionException | InterruptedException | ExecutionException e) {
+            configurations.Config.getInstance().debugLogger(e);
             throw new NoSuchElementException("Impossible to get the words");
         }
     }

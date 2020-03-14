@@ -11,31 +11,20 @@ import java.io.IOException;
 import java.net.*;
 import java.util.NoSuchElementException;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Notifies a user over UDP. Used to forward request challenge.
  */
 public class NotifierService {
 
-    private static final class Responses {
-
-        private CompletableFuture<WQPacket> response;
-        private AtomicInteger participants;
-
-        Responses(CompletableFuture<WQPacket> response) {
-            this.response = response;
-            this.participants = new AtomicInteger(0);
-        }
-
-        public AtomicInteger getParticipants() {
-            return participants;
-        }
-
-        public CompletableFuture<WQPacket> getResponse() {
-            return response;
-        }
-    }
+    /**
+     * The message sent to indicate that the setup wasn't successful to both the sender
+     * and an possible battle accepter.
+     */
+    final public static WQPacket ERROR_SETUP = new WQPacket(new PacketPojo(
+            OperationCode.SETUP_CHALLENGE,
+            ResponseCode.ERROR
+    ));
 
     /**
      * The UDP socket used by the service to write packets to the clients.
@@ -48,7 +37,7 @@ public class NotifierService {
     /**
      * Stores pending responses of sent notifications.
      */
-    private ConcurrentHashMap<String, Responses> pendingResponses;
+    private ConcurrentHashMap<String, CompletableFuture<WQPacket>> pendingResponses;
 
     private static NotifierService instance;
     private NotifierService() {
@@ -85,12 +74,12 @@ public class NotifierService {
     }
 
     /**
-     * Cleans the tables for the given nickname.
+     * Cleans the tables for the given nickname and completes an error setup.
      * @param nick
      */
     public void removeConnection(String nick) {
         connectionTable.remove(nick);
-        pendingResponses.remove(nick);
+        this.clearPendingResponseEntry(nick);
     }
 
     /**
@@ -106,13 +95,16 @@ public class NotifierService {
             throws IOException, NoSuchElementException
     {
         // Only one request per sender at a time is allowed.
-        // TODO PutIfAbsent
+        CompletableFuture<WQPacket> oldNotification = this.pendingResponses.get(sender);
         if (this.connectionTable.get(dest) == null
             || this.connectionTable.get(sender) == null
-            || this.pendingResponses.get(sender) != null
+                // An user must wait until his previous notifications are done before sending a new one.
+            || (oldNotification != null && !oldNotification.isDone())
         ) {
             return false;
         }
+        // Clear the map.
+        this.pendingResponses.remove(sender);
         // builds challenge request packet
         WQPacket wqPacket = new WQPacket(PacketPojo.buildForwardChallengeRequest(
                 sender,
@@ -123,8 +115,6 @@ public class NotifierService {
         // giving a DISCARD challenge response.
         this.setSenderNotificationTimeout(
                 sender,
-                OperationCode.REQUEST_CHALLENGE,
-                ResponseCode.ERROR,
                 Config.getInstance().getChallengeRequestTimeout()
         );
         return true;
@@ -158,7 +148,7 @@ public class NotifierService {
      * @return true if and only if the packet has been set.
      */
     public boolean setNotificationResponse(String sender, WQPacket wqPacket) {
-        CompletableFuture<WQPacket> pendingResponse = this.pendingResponses.get(sender).getResponse();
+        CompletableFuture<WQPacket> pendingResponse = this.pendingResponses.get(sender);
         if (pendingResponse != null && !pendingResponse.isDone()) {
             // Replace wqPacket returned as response and completes the future
             // so the get call returns immediately. The challenge sender will unlock and
@@ -166,6 +156,23 @@ public class NotifierService {
             return pendingResponse.complete(wqPacket);
         } else {
             return false;
+        }
+    }
+
+    /**
+     * Clear the pendingResponse map and completes (if not already) the promise with an error packet
+     * to inform every one listening to the completion that something went wrong.
+     * @param sender
+     */
+    public void clearPendingResponseEntry(String sender) {
+        if (sender != null) {
+            CompletableFuture<WQPacket> response = this.pendingResponses.remove(sender);
+            if (response != null && !response.isDone() && !response.isCancelled()) {
+                response.complete(new WQPacket(new PacketPojo(
+                        OperationCode.SETUP_CHALLENGE,
+                        ResponseCode.ERROR
+                )));
+            }
         }
     }
 
@@ -179,14 +186,9 @@ public class NotifierService {
     public WQPacket getResponse(String requester)
             throws ExecutionException, InterruptedException, NoSuchElementException
     {
-        Responses response = this.pendingResponses.get(requester);
-        CompletableFuture<WQPacket> timer = response.getResponse();
+        CompletableFuture<WQPacket> timer = this.pendingResponses.get(requester);
         if (timer != null) {
             WQPacket ret = timer.get();
-            // Clear notification ongoing table.
-            if (response.getParticipants().addAndGet(1) >= 2) {
-                this.pendingResponses.remove(requester);
-            }
             return ret;
         } else {
             throw new NoSuchElementException("An unexpected error occurred: probably some race condition occurred!");
@@ -197,13 +199,9 @@ public class NotifierService {
      * Sets (and starts) a pending response timer for the given sender that will be available
      * after timeoutMillis ms if nobody fulfill it before the timeout expires.
      * @param sender
-     * @param op
-     * @param res
      * @param timeoutMillis
      */
     private void setSenderNotificationTimeout(final String sender,
-                                      final OperationCode op,
-                                      final ResponseCode res,
                                       final int timeoutMillis
     ) {
         // Starts the notification timer and saves a reference to it.
@@ -214,11 +212,9 @@ public class NotifierService {
             } catch (InterruptedException e) {
                 System.out.println("Challenge Notification timeout expired for request by " + sender);
             }
-            return new WQPacket(new PacketPojo(
-                    op,
-                    res
-            ));
+            // Default: if timeout is reached the notification did not have a successful answer.
+            return ERROR_SETUP;
         });
-        this.pendingResponses.putIfAbsent(sender, new Responses(timer));
+        this.pendingResponses.putIfAbsent(sender, timer);
     }
 }

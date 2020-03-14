@@ -43,7 +43,7 @@ public class UserStorage {
     private Map<String, User> onlineUsers;
 
     /**
-     * Locks for updating and reading db files.
+     * Locks for updating and reading db files safely.
      */
     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock(true);
     private final Lock readLock = readWriteLock.readLock();
@@ -151,19 +151,7 @@ public class UserStorage {
         if (this.policy.equals(Policy.ON_SESSION_CLOSE)) {
             // Writes changes for this user to file
             if (user.hasBeenModified()) {
-                this.writeLock.lock();
-                try {
-                    JSONMapper.copyAndUpdate(
-                            this.onlinePath,
-                            user,
-                            UserViews.Online.class
-                    );
-                } catch (IOException e) {
-                    // It has some data lost
-                    e.printStackTrace();
-                } finally {
-                    this.writeLock.unlock();
-                }
+                this.safeUpdate(user);
             }
         }
         return true;
@@ -199,7 +187,7 @@ public class UserStorage {
         if (this.policy == Policy.IMMEDIATELY) {
             updates.add(recipientUser);
             updates.add(requesterUser);
-        } else if (this.policy == Policy.ON_SESSION_CLOSE
+        } else if (Policy.ON_SESSION_CLOSE.equals(this.policy)
                     && !this.isOnline(recipientNick)
         ) {
             updates.add(recipientUser);
@@ -284,10 +272,19 @@ public class UserStorage {
         }
     }
 
-    public boolean updateUserScore(String user, int points) {
-        return this.onlineUsers.computeIfPresent(user, (k, v) ->
-            v.setScore(v.getScore() + points)
-        ) != null;
+    /**
+     * If the user is loaded, it adds points to current user's point.
+     * @param user
+     * @param points
+     */
+    public void updateUserScore(String user, int points) {
+        this.onlineUsers.computeIfPresent(user, (k, v) -> {
+            User updated = v.setScore(v.getScore() + points);
+            if (Policy.IMMEDIATELY.equals(this.policy)) {
+                this.safeUpdate(updated);
+            }
+            return updated;
+        });
     }
 
     String getOnlinePath() {
@@ -356,7 +353,7 @@ public class UserStorage {
     }
 
     /**
-     * Appends concurrently an user to all storage files,
+     * Thread-safe appends an user to all storage files,
      * doesn't check if the user exists already
      */
     private boolean append(User user) {
@@ -382,6 +379,26 @@ public class UserStorage {
                 e.printStackTrace();
                 return false;
             }
+        } finally {
+            this.writeLock.unlock();
+        }
+    }
+
+    /**
+     * Safely updates user record in db.
+     * @param user
+     */
+    private void safeUpdate(User user) {
+        this.writeLock.lock();
+        try {
+            JSONMapper.copyAndUpdate(
+                    this.onlinePath,
+                    user,
+                    UserViews.Online.class
+            );
+        } catch (IOException e) {
+            // It has some data lost
+            Config.getInstance().debugLogger(e, "[USER STORAGE]");
         } finally {
             this.writeLock.unlock();
         }

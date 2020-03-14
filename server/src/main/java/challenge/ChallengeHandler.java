@@ -51,11 +51,11 @@ public class ChallengeHandler implements Runnable {
     /** Maps player name in selectionKey */
     private Map<String, SelectionKey> keys;
     /** The list of the players for this challenge */
-    private String[] players;
+    private List<String> players;
 
-    public ChallengeHandler(AsyncRegistrations mainRegistrationQueue, String ...players) {
+    public ChallengeHandler(AsyncRegistrations mainRegistrationQueue, String originalRequester, String player2) {
         this.mainRegistrationQueue = mainRegistrationQueue;
-        this.players = players; // Save it for error handling.
+        this.players = Arrays.asList(originalRequester, player2); // Save it for error handling.
         this.iteratorMap = new HashMap<>(PLAYERS);
         this.timeMap = new HashMap<>(PLAYERS);
         this.scores = new HashMap<>(PLAYERS);
@@ -74,9 +74,11 @@ public class ChallengeHandler implements Runnable {
                 // Initialise scores for each player.
                 this.scores.put(player, 0);
             }
-        } catch (NoSuchElementException | NullPointerException | IOException e) {
+        } catch (RuntimeException | IOException e) {
             Config.getInstance().debugLogger(e.getMessage());
             this.error = true;
+        } finally {
+            NotifierService.getInstance().clearPendingResponseEntry(originalRequester);
         }
     }
 
@@ -112,7 +114,8 @@ public class ChallengeHandler implements Runnable {
                         if (key.isWritable()) {
                             write(key);
                         }
-                    } catch (IOException e) {
+                    } catch (CancelledKeyException | IOException e) {
+                        Config.getInstance().debugLogger(e, "Challenge Thread.");
                         error = true;
                     }
                 }
@@ -154,7 +157,7 @@ public class ChallengeHandler implements Runnable {
                 });
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            Config.getInstance().debugLogger(e, "IO Exception in challenge thread!");
             this.onError();
         }
     }
@@ -288,7 +291,7 @@ public class ChallengeHandler implements Runnable {
     private void registerToMainSelector(String player, WQPacket wqPacket) {
         // Cancel the challenge thread key interests if already registered.
         SelectionKey key = this.keys.get(player);
-        if (key != null) key.interestOps(0);
+        if (key != null && key.isValid()) key.interestOps(0);
         // Set interests in the main key.
         State state = NotifierService.getInstance()
                 .getConnection(player);

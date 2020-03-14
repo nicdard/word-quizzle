@@ -26,6 +26,7 @@ public class RequestChallengeProcessor extends SetupBattleProcessor {
     public void process(String input) throws InputProcessorException, IOException {
         if (this.validate(input)) {
             String[] params = input.split(" ");
+            System.out.println("Waiting " + params[1] + " response...");
             PacketPojo response = TCPHandler.getInstance().handle(new WQPacket(
                     PacketPojo.buildChallengeRequest(params[1])
             ));

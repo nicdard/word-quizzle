@@ -54,6 +54,7 @@ public class userStorageTest {
         userStorage.addFriend("user1", "user2");
         userStorage.addFriend("user1", "user3");
         userStorage.addFriend("user2", "user3");
+        userStorage.updateUserScore("user1", 3);
         // Verifies user 3 updated and 1 and 2 not yet.
         User user3 = JSONMapper.findAndGet(userStorage.getOnlinePath(), "user3", UserViews.Online.class);
         Set<String> expectedJSON3Friends = new HashSet<>(Arrays.asList("user1", "user2"));
@@ -63,16 +64,18 @@ public class userStorageTest {
         Assertions.assertEquals(expected1Friends, userStorage.getFriends("user1"));
         User user1 = JSONMapper.findAndGet(userStorage.getOnlinePath(), "user1", UserViews.Online.class);
         Assertions.assertEquals(new HashSet<>(), user1.getFriends());
+        Assertions.assertEquals(0, user1.getScore());
         // After logout all online modified users are written to the files
         userStorage.logOutUser("user1");
         userStorage.logOutUser("user2");
         user1 = JSONMapper.findAndGet(userStorage.getOnlinePath(), "user1", UserViews.Online.class);
         Assertions.assertEquals(expected1Friends, user1.getFriends());
+        Assertions.assertEquals(3, user1.getScore());
     }
 
     @Test
     @Order(3)
-    void testRankingList() throws IOException {
+    void testRankingList() {
         Assertions.assertTrue(userStorage.logInUser("user1", "11111"));
         Assertions.assertEquals(3, userStorage.getRankingList("user1").size());
         userStorage.logOutUser("user1");

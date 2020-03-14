@@ -3,6 +3,7 @@ package configurations;
 import storage.Policy;
 
 import java.io.File;
+import java.util.Arrays;
 
 /**
  * A singleton that holds all configurations of the server.
@@ -219,9 +220,29 @@ public class Config {
         return isDebug;
     }
 
+    /**
+     * Prints debug messages.
+     * @param message
+     */
     public void debugLogger(String message) {
         if (this.isDebug) {
             System.out.println("[SERVER DEBUG] " + message);
         }
+    }
+
+    /**
+     * Prints an error stack trace information in debug mode.
+     * @param t
+     */
+    public void debugLogger(Throwable t, String ...additionalInfo) {
+        this.debugLogger(Arrays.stream(t.getStackTrace())
+            .map(StackTraceElement::toString)
+            .reduce((a, el) -> String.join("\n", a, el))
+            .orElse("")
+            .concat("\n" + Arrays.stream(additionalInfo)
+                    .reduce((a, el) -> String.join("\n", a, el))
+                    .orElse("")
+            )
+        );
     }
 }

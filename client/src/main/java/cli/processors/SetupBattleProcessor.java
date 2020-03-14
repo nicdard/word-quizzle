@@ -21,13 +21,14 @@ public abstract class SetupBattleProcessor extends BaseInputProcessor {
                     // Synchronize the players in the server.
                     new PacketPojo(OperationCode.SETUP_CHALLENGE, ResponseCode.OK)
             ));
+            System.out.println("...Entering battle!");
             PacketPojo packetPojo = TCPHandler.getInstance().receive();
             if (packetPojo.isErrorResponse()) {
-                System.out.println("An unexpected error occurred");
+                System.out.println("Unfortunately an unexpected error occurred during battle setup.");
                 CliManager.getInstance().setNext(new Prompt(
-                        Prompt.EXITING,
-                        null,
-                        CliState.ERROR
+                        Prompt.MAIN_PROMPT,
+                        BaseInputProcessor.getMainDispatcher(),
+                        CliState.MAIN
                 ));
             } else {
                 System.out.println("You can press enter to skip the word if you don't know the translation.");

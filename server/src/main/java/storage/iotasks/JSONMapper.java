@@ -37,7 +37,7 @@ public class JSONMapper {
      * @return the user as a JSON string
      * @throws JsonProcessingException
      */
-    static String serialize(User user) throws JsonProcessingException {
+    static String serialize(final User user) throws JsonProcessingException {
         return objectMapper.writeValueAsString(user);
     }
 
@@ -48,7 +48,7 @@ public class JSONMapper {
      * @return the user as a JSON string.
      * @throws JsonProcessingException
      */
-    static String serialize(User user, Class view) throws JsonProcessingException {
+    static String serialize(final User user,final Class view) throws JsonProcessingException {
         return objectMapper
                 .writerWithView(view)
                 .writeValueAsString(user);
@@ -61,7 +61,10 @@ public class JSONMapper {
      * @return the user as a JSON string.
      * @throws JsonProcessingException
      */
-    static void serializeToFile(User user, Class view, JsonGenerator jsonGenerator) throws IOException {
+    static void serializeToFile(final User user,
+                                final Class view,
+                                final JsonGenerator jsonGenerator
+    ) throws IOException {
         objectMapper
                 .writerWithView(view)
                 .writeValue(jsonGenerator, user);
@@ -98,7 +101,7 @@ public class JSONMapper {
      * @return The parsed user
      * @throws IOException
      */
-    static User deserialize(JsonParser parser, Class view) throws IOException {
+    static User deserialize(final JsonParser parser, final Class view) throws IOException {
         return objectMapper
                 .readerWithView(view)
                 .forType(User.class)
@@ -115,7 +118,10 @@ public class JSONMapper {
      * @param view
      * @return an user
      */
-    public static User findAndGet(String filename, String nick, Class view) throws IOException, NoSuchElementException {
+    public static User findAndGet(final String filename,
+                                  final String nick,
+                                  final Class view
+    ) throws IOException, NoSuchElementException {
         JsonFactory jsonFactory = JSONMapper.objectMapper.getFactory();
         // Opens the file and get a parser to traverse it
         try (InputStream inputStream = Files.newInputStream(Paths.get(filename));
@@ -145,7 +151,10 @@ public class JSONMapper {
      * @param view
      * @return a set of user, it can be empty
      */
-    public static TreeSet<User> findAndGet(String filename, Set<String> nicks, Class view) throws IOException {
+    public static TreeSet<User> findAndGet(final String filename,
+                                           final Set<String> nicks,
+                                           final Class view
+    ) throws IOException {
         JsonFactory jsonFactory = JSONMapper.objectMapper.getFactory();
         // Opens the file and get a parser to traverse it
         try (InputStream inputStream = Files.newInputStream(Paths.get(filename));
@@ -176,7 +185,10 @@ public class JSONMapper {
      * @param view
      * @throws IOException
      */
-    public static boolean copyAndUpdate(String filename, User user, Class view) throws IOException {
+    public static boolean copyAndUpdate(final String filename,
+                                        final User user,
+                                        final Class view
+    ) throws IOException {
         // To avoid code replication.
         return copyAndUpdate(filename, Collections.singletonList(user), view);
     }
@@ -191,7 +203,10 @@ public class JSONMapper {
      * @param view
      * @throws IOException
      */
-    public static boolean copyAndUpdate(String filename, List<User> users, Class view) throws IOException {
+    public static boolean copyAndUpdate(final String filename,
+                                        final List<User> users,
+                                        final Class view
+    ) throws IOException {
         String tempFilename = stripExtension(filename) + "_temp" + ".json";
         Path tempPath = Paths.get(tempFilename);
         Files.deleteIfExists(tempPath);

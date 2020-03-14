@@ -51,10 +51,13 @@ public class AskWordProcessor extends BaseInputProcessor {
                             CliState.MAIN
                     ));
                 } else {
+                    System.out.println("Unfortunately an unexpected error occurred " +
+                            "during the challenge, maybe your friend left."
+                    );
                     CliManager.getInstance().setNext(new Prompt(
-                            Prompt.EXITING,
-                            null,
-                            CliState.ERROR
+                            Prompt.MAIN_PROMPT,
+                            BaseInputProcessor.getMainDispatcher(),
+                            CliState.MAIN
                     ));
                 }
             }

@@ -87,16 +87,7 @@ class MainClassWQServer {
                             write(key);
                         }
                     } catch (CancelledKeyException e) {
-                        configurations.Config.getInstance().debugLogger("Cancelled key");
-                        if (key.attachment() != null) {
-                            State state = (State) key.attachment();
-                            String nick = state.getClientNick();
-                            if (nick != null) {
-                                UserStorage.getInstance().logOutUser(nick);
-                                NotifierService.getInstance().removeConnection(nick);
-                            }
-                        }
-                        key.channel().close();
+                        AsyncRegistrations.deregisterClientSocket(key);
                     }
                 }
                 selector.selectedKeys().clear();
@@ -219,7 +210,7 @@ class MainClassWQServer {
                             .logOutUser(state.getClientNick())
                     ).thenAccept((succeed) -> {
                         if (succeed) {
-                            System.out.println("Logging out");
+                            configurations.Config.getInstance().debugLogger("Logging out");
                             // Remove
                             NotifierService.getInstance().removeConnection(state.getClientNick());
                             // Resets the connection.
@@ -321,9 +312,11 @@ class MainClassWQServer {
                                 );
                             if (hasNotified) {
                                 // Run in a separate thread so the whole server doesn't block
-                                CompletableFuture.runAsync(() -> this.setup(client, state.getClientNick(), state, packet));
+                                CompletableFuture.runAsync(() -> {
+                                    this.setup(client, state.getClientNick(), state);
+                                });
                             } else {
-                                throw new IOException("Notifier could notify the user.");
+                                throw new IOException("Notifier couldn't notify the user.");
                             }
                         } else {
                             throw new NoSuchElementException("Not online!");
@@ -337,23 +330,32 @@ class MainClassWQServer {
                     }
                     break;
                 case FORWARD_CHALLENGE:
-                    System.out.println("Forward " + state.getClientNick() + " sender " + packet.getFriend());
+                    configurations.Config.getInstance()
+                            .debugLogger("Forward " + state.getClientNick() + " sender " + packet.getFriend());
                     String sender = packet.getFriend();
-                    if (packet.isSuccessfullResponse()) {
-                        NotifierService.getInstance().setNotificationResponse(
+                    // If player2 accepted in time (second clause of the if guard) then send a successful packet.
+                    if (packet.isSuccessfullResponse() && NotifierService.getInstance().setNotificationResponse(
                                 sender,
                                 new WQPacket(new PacketPojo(
                                         OperationCode.SETUP_CHALLENGE,
                                         ResponseCode.OK,
                                         ChallengeHandler.getChallengeRules()
                                 ))
-                        );
+                    )) {
                         configurations.Config.getInstance().debugLogger("Accepted " + state.getClientNick() + " " + sender);
-                        this.setup(client, sender, state, packet);
-                        // Run the challenge thread.
-                        ChallengeHandler challenge = new ChallengeHandler(this.asyncRegistrations, sender, state.getClientNick());
-                        Thread executor = new Thread(challenge);
-                        executor.start();
+                        CompletableFuture.runAsync(() -> {
+                            // It's a blocking call, we don't want the whoe server to stop
+                            this.setup(client, sender, state);
+                            // Run the challenge thread.
+                            try {
+                                ChallengeHandler challenge = new ChallengeHandler(this.asyncRegistrations, sender, state.getClientNick());
+                                Thread executor = new Thread(challenge);
+                                executor.start();
+                            } catch (NoSuchElementException e) {
+                                configurations.Config.getInstance().debugLogger("An error occurred in challenge setup: " + e);
+                                NotifierService.getInstance().clearPendingResponseEntry(sender);
+                            }
+                        });
                     } else {
                         // Sets error packet so that the requester does not wait till the timeout.
                         NotifierService.getInstance().setNotificationResponse(
@@ -364,12 +366,15 @@ class MainClassWQServer {
                                         "The opponent refuses the challenge"
                                 ))
                         );
-                        System.out.println("Discarded " + state.getClientNick());
-                        this.setup(client, sender, state, packet);
+                        configurations.Config.getInstance().debugLogger("Discarded " + state.getClientNick());
+                        this.setup(client, sender, state);
+                        // Invalidate the original request.
+                        NotifierService.getInstance().clearPendingResponseEntry(sender);
                     }
                     break;
                 default:
-                    System.out.println("Unhandled command! " + packet.getOperationCode());
+                    configurations.Config.getInstance()
+                            .debugLogger("Unhandled command! " + packet.getOperationCode());
                     // Register the client anyway.
                     client.interestOps(SelectionKey.OP_READ);
             }
@@ -382,7 +387,16 @@ class MainClassWQServer {
         }
     }
 
-    private void setup(SelectionKey client, String requester, State state, PacketPojo packet) {
+    /**
+     * Async blocking call, waits for the timer to get a setup response from the NotifierService
+     * and sets it to be written to the client.
+     * It is used to sync the players for a battle and to assure that every one gets the right response
+     * according to the setup policy.
+     * @param client
+     * @param requester
+     * @param state
+     */
+    private void setup(SelectionKey client, String requester, State state) {
         try {
             // Waits for the response.
             WQPacket response = NotifierService.getInstance()
@@ -399,10 +413,7 @@ class MainClassWQServer {
                 | InterruptedException
                 | NoSuchElementException e)
         {
-            state.setPacketToWrite(new WQPacket(new PacketPojo(
-                    packet.getOperationCode(),
-                    ResponseCode.ERROR
-            )));
+            state.setPacketToWrite(NotifierService.ERROR_SETUP);
         } finally {
             this.asyncRegistrations.register(
                     client,

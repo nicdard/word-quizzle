@@ -1,5 +1,10 @@
 package connection;
 
+import challenge.NotifierService;
+import configurations.Config;
+import storage.UserStorage;
+
+import java.io.IOException;
 import java.nio.channels.SelectionKey;
 import java.util.Queue;
 import java.util.concurrent.PriorityBlockingQueue;
@@ -25,14 +30,25 @@ public class AsyncRegistrations {
 
     /**
      * Executes and removes the first command in the queue.
-     * @return
+     * @return false when the queue is empty.
      */
     private boolean call() {
         Registration command = this.registrationQueue.poll();
         if (command != null) {
-            command.getKey().interestOps(command.getInterestOp());
+            SelectionKey key = command.getKey();
+            if (key.isValid()) {
+                key.interestOps(command.getInterestOp());
+            } else {
+                try {
+                    deregisterClientSocket(key);
+                } catch (IOException e) {
+                    Config.getInstance().debugLogger(e);
+                }
+            }
             return true;
-        } else return false;
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -40,6 +56,24 @@ public class AsyncRegistrations {
      */
     public void callAll() {
         while (call()) { }
+    }
+
+    /**
+     * Close a socket channel and frees all maps in the memory associated with that client.
+     * @param key
+     * @throws IOException
+     */
+    public static void deregisterClientSocket(SelectionKey key) throws IOException {
+        Config.getInstance().debugLogger("Cancelled key");
+        if (key.attachment() != null) {
+            State state = (State) key.attachment();
+            String nick = state.getClientNick();
+            if (nick != null) {
+                UserStorage.getInstance().logOutUser(nick);
+                NotifierService.getInstance().removeConnection(nick);
+            }
+        }
+        key.channel().close();
     }
 
     /**

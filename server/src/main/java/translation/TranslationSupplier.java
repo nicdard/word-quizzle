@@ -1,5 +1,6 @@
 package translation;
 
+import java.util.NoSuchElementException;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 
@@ -16,12 +17,12 @@ public class TranslationSupplier implements Supplier<Translation> {
     }
 
     @Override
-    public Translation get() {
+    public Translation get() throws NoSuchElementException {
         TranslationService chain = BaseTranslationService.getChain();
         try {
             return new Translation(word, chain.translate(word));
         } catch (UnavailableTranslationException e) {
-            throw new RuntimeException(e);
+            throw new NoSuchElementException(e.toString());
         }
     }
 }
