@@ -16,10 +16,4 @@ public interface InputProcessor {
      * @throws InputProcessorException
      */
     void process(String input) throws InputProcessorException, IOException;
-
-    /**
-     * Sets the next processor to be applied on the input.
-     * @param next
-     */
-    InputProcessor setNext(InputProcessor next);
 }

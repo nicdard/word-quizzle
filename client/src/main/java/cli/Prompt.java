@@ -8,7 +8,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-public class Prompt implements Comparable<Prompt> {
+public class Prompt {
 
     public static final String DEFAULT_PROMPT = "> ";
     public static String PROMPT = DEFAULT_PROMPT;
@@ -87,12 +87,6 @@ public class Prompt implements Comparable<Prompt> {
         return executionState;
     }
 
-    @Override
-    public int compareTo(Prompt prompt) {
-        if (prompt == null) return 1;
-        return this.getExecutionState().compareTo(prompt.getExecutionState());
-    }
-
     /**
      * Used to change the prompt displayed. It appends a blank space and the default prompt.
      * When a null value is provided it restores the default one.
@@ -105,5 +99,13 @@ public class Prompt implements Comparable<Prompt> {
 
     public static String getAskWordStringPrompt(String word) {
         return ASK_WORD.replace(WORD_MACRO, word);
+    }
+
+    public static void cleanUp() {
+        try {
+            Prompt.reader.close();
+        } catch (IOException e) {
+            System.out.println(e);
+        }
     }
 }

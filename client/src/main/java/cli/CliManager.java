@@ -32,28 +32,29 @@ public class CliManager {
         this.next = prompt;
     }
 
+    /**
+     * If set executes the next prompt.
+     */
     public void executeNext() {
         Prompt prompt = this.next;
         this.setNext(null);
-        if (prompt != null) {
+        if (prompt != null && this.hasTransition(prompt.getExecutionState())) {
             // if not waiting room should shutdown consumer thread if present.
             if (prompt.getExecutionState() != CliState.WAIT_BATTLE) {
                 if (this.notifier != null) this.notifier.stop();
             }
-            if (this.hasTransition(prompt.getExecutionState())) {
-                try {
-                    // Sets the new state.
-                    this.state = prompt.getExecutionState();
-                    // Prompts the user and executes next step.
-                    prompt.execute();
-                } catch (NullPointerException | IOException e) {
-                    // Re-add the prompt.
-                    CliManager.getInstance().setNext(prompt);
-                }
-            } else {
-                //this.onReject();
+            try {
+                // Sets the new state.
+                this.state = prompt.getExecutionState();
+                // Prompts the user and executes next step.
+                prompt.execute();
+            } catch (NullPointerException | IOException e) {
+                // Re-add the prompt.
+                CliManager.getInstance().setNext(prompt);
             }
         } else {
+            // The application will stop because an error occurred
+            // and no more prompts for the user are available.
             System.out.println("[ERROR] Unexpected error!");
             this.state = CliState.ERROR;
         }
@@ -68,7 +69,7 @@ public class CliManager {
     }
 
     /**
-     * Verifies that the
+     * Naive FSM transition matrix implementation.
      * @param nextState
      * @return
      */
@@ -77,7 +78,8 @@ public class CliManager {
             case WAIT_BATTLE:
                 return nextState == CliState.MAIN
                         || nextState == CliState.ONGOING_BATTLE
-                        || nextState == CliState.ERROR;
+                        || nextState == CliState.ERROR
+                        || nextState == CliState.WAIT_BATTLE;
             case ONGOING_BATTLE:
                 return nextState == CliState.ONGOING_BATTLE
                         || nextState == CliState.MAIN
@@ -96,11 +98,6 @@ public class CliManager {
         }
     }
 
-    // TODO
-    private void onReject() {
-
-    }
-
     public void setConsumer(Thread consumer) {
         this.consumer = consumer;
     }
@@ -109,7 +106,8 @@ public class CliManager {
         return notifier;
     }
 
-    public void cleanUpNofier() throws InterruptedException {
+    public void cleanUp() throws InterruptedException {
+        Prompt.cleanUp();
         if (this.notifier != null) notifier.stop();
         if (this.consumer != null) consumer.join();
     }

@@ -1,7 +1,4 @@
 import cli.CliManager;
-import cli.CliState;
-import cli.Prompt;
-import cli.processors.BaseInputProcessor;
 import cli.processors.LoginProcessor;
 import connection.TCPHandler;
 import connection.UDPReader;
@@ -38,7 +35,7 @@ public class MainClassWQClient {
         TCPHandler.getInstance().close();
         udpReader.stop();
         udpReaderExecutor.join();
-        CliManager.getInstance().cleanUpNofier();
+        CliManager.getInstance().cleanUp();
     }
 }
 

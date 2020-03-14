@@ -38,7 +38,7 @@ public class AcceptanceBattleProcessor extends SetupBattleProcessor {
     @Override
     public void process(String input) throws InputProcessorException, IOException {
         if (this.validate(input)) {
-            if (input.isEmpty()) {
+            if (input.isEmpty() || input.equalsIgnoreCase("exit")) {
                 System.out.println("Exiting waiting room...");
                 CliManager.getInstance().setNext(new Prompt(
                         Prompt.MAIN_PROMPT,
@@ -53,7 +53,7 @@ public class AcceptanceBattleProcessor extends SetupBattleProcessor {
                         .getSender(senderIndex);
                 if (challengeRequester == null) {
                     // Wrong input just wait for another one.
-                    System.out.println("The number you entered do not appear in the challenge list.");
+                    System.out.println("The number you entered does not appear in the challenge list.");
                     CliManager.getInstance().setNext(new Prompt(
                             Prompt.READER,
                             new AcceptanceBattleProcessor(),

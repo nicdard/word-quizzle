@@ -8,8 +8,6 @@ public abstract class BaseInputProcessor implements InputProcessor {
 
     protected int expectedParameters = 0;
 
-    private InputProcessor next;
-
     private static InputProcessor mainDispatcher;
 
     /**
@@ -27,18 +25,8 @@ public abstract class BaseInputProcessor implements InputProcessor {
 
     @Override
     public void process(String input) throws InputProcessorException, IOException {
-        if (this.next != null) {
-            this.next.process(input);
-        } else {
-            // None can handle this input.
-            throw new InputProcessorException(input);
-        }
-    }
-
-    @Override
-    public InputProcessor setNext(InputProcessor next) {
-        this.next = next;
-        return this;
+        // None can handle this input.
+        throw new InputProcessorException(input);
     }
 
     public static InputProcessor getMainDispatcher() {
