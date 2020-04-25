@@ -10,6 +10,7 @@ import protocol.WQPacket;
 import protocol.json.PacketPojo;
 import storage.RegistrationRegistry;
 import storage.UserStorage;
+import translation.BaseTranslationService;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -70,7 +71,6 @@ class MainClassWQServer {
     }
 
     public void run() {
-        // TODO put termination condition from client
         while(true) {
             try {
                 this.asyncRegistrations.callAll();
@@ -345,7 +345,7 @@ class MainClassWQServer {
                     )) {
                         configurations.Config.getInstance().debugLogger("Accepted " + state.getClientNick() + " " + sender);
                         CompletableFuture.runAsync(() -> {
-                            // It's a blocking call, we don't want the whoe server to stop
+                            // It's a blocking call, we don't want the whole server to stop
                             this.setup(client, sender, state);
                             // Run the challenge thread.
                             try {
@@ -425,7 +425,13 @@ class MainClassWQServer {
 
     public static void main(String [] args) throws IOException {
         // Parse command line arguments.
-        configurations.Config.getInstance().parseCommandLineArguments(args);
+        configurations.Config config = configurations.Config.getInstance();
+        config.parseCommandLineArguments(args);
+        config.debugLogger(config.toString());
+        // Instantiate the translation service.
+        BaseTranslationService.getChain();
+        // Instantiate the UserStorage.
+        UserStorage.getInstance();
         MainClassWQServer s = new MainClassWQServer();
         s.run();
     }

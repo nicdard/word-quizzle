@@ -20,7 +20,8 @@ public class ChallengeHandler implements Runnable {
 
     private static final int PLAYERS = 2;
 
-    private static final String CHALLENGE_RULES = "You and your opponent will have " + Config.getInstance().getChallengeTime() + " seconds to translate " + Config.getInstance().getWordsForChallenge() + " words.";
+    private static final String CHALLENGE_RULES = "You and your opponent will have " + Config.getInstance().getChallengeTime() + " seconds to translate " + Config.getInstance().getWordsForChallenge() + " words.\n" +
+            "Every right answer gives you +" + Config.getInstance().getWordBonus() + ", every wrong one -" + Config.getInstance().getWordMalus() + " and every skipped one " + Config.getInstance().getWordSkipPoints() + ". All ungiven answers will be count as skipped ones.";
 
     /**
      * The registration queue of the main selector: used to reinsert the clients
@@ -132,22 +133,32 @@ public class ChallengeHandler implements Runnable {
             if (error) {
                 this.onError();
             } else {
+                // Count every ungiven answer as skipped.
+                this.iteratorMap.forEach((user, iterator) -> {
+                    int count = 0;
+                    while (iterator.hasNext()) {
+                        iterator.next();
+                        count++;
+                    }
+                    final int _count = count;
+                    this.scores.computeIfPresent(user, (_user, score) ->
+                            score + (_count * Config.getInstance().getWordSkipPoints())
+                    );
+                });
                 // Compute results and send results packets.
                 List<String> ranking = this.scores.entrySet().stream()
                         .sorted((e1, e2) -> {
                             int orderByScore = e2.getValue().compareTo(e1.getValue());
                             if (orderByScore == 0) {
-                                return this.timeMap.get(e2.getKey()).compareTo(this.timeMap.get(e1.getKey()));
+                                return this.timeMap.get(e1.getKey()).compareTo(this.timeMap.get(e2.getKey()));
                             } else return orderByScore;
                         })
                         .map(Map.Entry::getKey)
                         .collect(Collectors.toList());
 
                 String winner = ranking.get(0);
-                this.scores.put(
-                        winner,
-                        this.scores.get(winner)
-                                + Config.getInstance().getWinnerExtraPoints()
+                this.scores.computeIfPresent(winner, (_winner, oldScore) ->
+                        oldScore + Config.getInstance().getWinnerExtraPoints()
                 );
                 // Update scores and set final message for all participants;
                 // register back to the main selector.
@@ -221,18 +232,25 @@ public class ChallengeHandler implements Runnable {
                 long delta = this.start - System.currentTimeMillis() / 1000;
                 if (delta < Config.getInstance().getChallengeTime()) {
                     // Checks if the translation is correct and in time; updates the user scores.
-                    List<String> translations = this.dictionary.get(packet.getWord());
-                    // A translation is considered valid if any of the translations from the
-                    // Translation service matches the given one.
-                    boolean isRight = translations.stream()
-                            .anyMatch(t -> t.equalsIgnoreCase(packet.getTranslation()));
                     int score = this.scores.get(state.getClientNick());
-                    if (isRight) {
-                        // Add points to the user's score.
-                        score += Config.getInstance().getWordBonus();
+                    // Checks first if the answer is skip.
+                    boolean isSkipped = packet.getTranslation().trim().isEmpty();
+                    if (isSkipped) {
+                        score += Config.getInstance().getWordSkipPoints();
                     } else {
-                        // Decrease user's score.
-                        score -= Config.getInstance().getWordMalus();
+                        // If the user sent something then checks if i
+                        List<String> translations = this.dictionary.get(packet.getWord());
+                        // A translation is considered valid if any of the translations from the
+                        // Translation service matches the given one.
+                        boolean isRight = translations.stream()
+                                .anyMatch(t -> t.equalsIgnoreCase(packet.getTranslation().trim()));
+                        if (isRight) {
+                            // Add points to the user's score.
+                            score += Config.getInstance().getWordBonus();
+                        } else {
+                            // Decrease user's score.
+                            score -= Config.getInstance().getWordMalus();
+                        }
                     }
                     this.scores.put(state.getClientNick(), score);
                 } else {

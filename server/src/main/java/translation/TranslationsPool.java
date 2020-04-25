@@ -4,19 +4,17 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * A singleton which implements a fixed maximum size pool of couples < word, List of translations >. To manage the size every couple has also oldness timestamp, which is reset on touch
+ * Implements a fixed maximum size pool of couples < word, List of translations >. To manage the size every couple has also oldness timestamp, which is reset on touch
  * It is a centralised cache for the various challenges dictionaries (sort of JVM String constant pool).
  * It uses a chain of responsibility pattern: when a translation is not available
  * it forward the request to a "lower level" TranslationService
  * (either cache or primary service), therefor it isn't meant
  * to be used as the primary TranslationService.
  *
- * NOTE: In multithreaded application don't lazy load this class or,
- * if needed, make getInstance synchronized
+ * It is not a singleton because there can be different
  */
 public class TranslationsPool extends BaseTranslationService {
 
-    private static TranslationsPool instance;
     /**
      * The maximum number of cacheables words.
      */
@@ -26,16 +24,9 @@ public class TranslationsPool extends BaseTranslationService {
      */
     private Map<String, ItemValue> pool;
 
-    private TranslationsPool(long maximumSize) {
+    public TranslationsPool(long maximumSize) {
         this.maximumSize = maximumSize;
         this.pool = new ConcurrentHashMap<>();
-    }
-
-    static TranslationsPool getInstance(long maximumSize) {
-        if (instance == null) {
-            instance = new TranslationsPool(maximumSize);
-        }
-        return instance;
     }
 
     @Override

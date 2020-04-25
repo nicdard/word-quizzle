@@ -13,7 +13,7 @@ import java.util.List;
  */
 class MyMemoryApiTest {
 
-    private final static TranslationService service = MyMemoryAPI.getInstance();
+    private final static TranslationService service = new MyMemoryAPI();
 
     @BeforeAll
     static void setServiceConfigurations() {

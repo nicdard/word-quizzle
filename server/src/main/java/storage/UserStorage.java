@@ -49,7 +49,7 @@ public class UserStorage {
     private final Lock readLock = readWriteLock.readLock();
     private final Lock writeLock = readWriteLock.writeLock();
 
-    private static UserStorage instance = UserStorage.getInstance();
+    private static UserStorage instance;
     private UserStorage() {
         // Initialise storage directories
         Config config = Config.getInstance();

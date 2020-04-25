@@ -10,7 +10,7 @@ public enum Policy {
      */
     IMMEDIATELY,
     /**
-     * Use a buffer for all the client login session, when a client logout
+     * Use a buffer for all the client login session, when a client logs-out
      * then write all information.
      */
     ON_SESSION_CLOSE

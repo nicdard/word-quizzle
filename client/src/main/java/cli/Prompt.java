@@ -106,7 +106,7 @@ public class Prompt {
         try {
             Prompt.reader.close();
         } catch (IOException e) {
-            System.out.println(e);
+            e.printStackTrace();
         }
     }
 }

@@ -1,7 +1,5 @@
 package cli;
 
-import cli.processors.BaseInputProcessor;
-
 import java.io.IOException;
 
 public class CliManager {
@@ -29,15 +27,30 @@ public class CliManager {
     }
 
     /**
-     * If set executes the next prompt.
+     * Manages the interaction with the user.
      */
-    public void executeNext() {
+    public void start() {
+        while (!this.shouldShutdown()) {
+            this.executeNext();
+        }
+    }
+
+    /**
+     * If set, executes the next prompt. Sets error state otherwise.
+     */
+    private void executeNext() {
         Prompt prompt = this.next;
         this.setNext(null);
         if (prompt != null && this.hasTransition(prompt.getExecutionState())) {
-            // if not waiting room should shutdown consumer thread if present.
             if (prompt.getExecutionState() != CliState.WAIT_BATTLE) {
-                if (this.notifier != null) this.notifier.stop();
+                // if not in the waiting room it should shutdown consumer thread if present.
+                if (this.notifier != null) {
+                    this.notifier.stop();
+                    this.notifier = null;
+                }
+            } else {
+                // if entering the waiting room it should start a notifier thread.
+                this.startNotifier();
             }
             try {
                 // Sets the new state.
@@ -94,9 +107,6 @@ public class CliManager {
         }
     }
 
-    public void setConsumer(Thread consumer) {
-        this.consumer = consumer;
-    }
 
     public NotificationConsumer getNotifier() {
         return notifier;
@@ -108,7 +118,15 @@ public class CliManager {
         if (this.consumer != null) consumer.join();
     }
 
-    public void setNotifier(NotificationConsumer notifier) {
-        this.notifier = notifier;
+
+    /**
+     * Starts a new notifierThread if none is already running.
+     */
+    public void startNotifier() {
+        if (this.notifier == null) {
+            this.notifier = new NotificationConsumer();
+            this.consumer = new Thread(notifier);
+            this.consumer.start();
+        }
     }
 }

@@ -1,5 +1,8 @@
 package configurations;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import protocol.WQPacket;
 import storage.Policy;
 
@@ -10,6 +13,8 @@ import java.util.Arrays;
 /**
  * A singleton that holds all configurations of the server.
  */
+// Used in debug mode to print the configurations.
+@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 public class Config {
 
     /** Singleton instance */
@@ -25,15 +30,21 @@ public class Config {
     }
 
     /**
+     * Used and instantiated only when toString is called,
+     * for debug and log purposes.
+     */
+    private static ObjectMapper objectMapper;
+
+    /**
      * True: Logs Server info messages.
      * Default: false.
      */
     private boolean isDebug = false;
     /**
      * True: use a cache layer if possible to translate the words
-     * Default: false
+     * Default: true
      */
-    private boolean useTranslationCache = false;
+    private boolean useTranslationCache = true;
     /**
      * @link useTranslationCache: This option is considered only if
      * useTranslationCache is set to true.
@@ -100,6 +111,10 @@ public class Config {
      */
     private int wordMalus = 1;
     /**
+     * Configures the points lost/gained by an user when an answer is skipped.
+     */
+    private int wordSkip = 0;
+    /**
      * Configures the additional points gained by an user when winning a challenge.
      */
     private int winnerExtraPoints = 5;
@@ -156,6 +171,18 @@ public class Config {
                 case "-challengeTime":
                     this.challengeTime = Integer.parseInt(rawValue);
                     break;
+                case "-setWordMalus":
+                    this.wordMalus = Integer.parseInt(rawValue);
+                    break;
+                case "-setWordBonus":
+                    this.wordBonus = Integer.parseInt(rawValue);
+                    break;
+                case "-setWordSkip":
+                    this.wordSkip = Integer.parseInt(rawValue);
+                    break;
+                case "-setWinnerExtraPoints":
+                    this.winnerExtraPoints = Integer.parseInt(rawValue);
+                    break;
                 default:
                     System.out.println("[WARNING] Unrecognised option: " + key + "\n->this option will be ignored");
             }
@@ -210,6 +237,10 @@ public class Config {
         return wordMalus;
     }
 
+    public int getWordSkipPoints() {
+        return wordSkip;
+    }
+
     public int getWinnerExtraPoints() {
         return winnerExtraPoints;
     }
@@ -255,6 +286,16 @@ public class Config {
             this.debugLogger(e);
         } finally {
             byteBuffer.rewind();
+        }
+    }
+
+    @Override
+    public String toString() {
+        try {
+            if (Config.objectMapper == null) Config.objectMapper = new ObjectMapper();
+            return "Configurations: " + Config.objectMapper.writeValueAsString(this);
+        } catch (JsonProcessingException e) {
+            return "";
         }
     }
 }

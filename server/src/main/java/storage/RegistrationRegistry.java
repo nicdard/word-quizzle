@@ -7,15 +7,12 @@ import java.rmi.RemoteException;
 
 public class RegistrationRegistry implements RegistrationRemoteService {
 
-    private static UserStorage storage;
-
     private static RegistrationRegistry instance;
     private RegistrationRegistry() {
     }
     public static RegistrationRegistry getInstance() {
         if (instance == null) {
             instance = new RegistrationRegistry();
-            storage = UserStorage.getInstance();
         }
         return instance;
     }
@@ -40,7 +37,7 @@ public class RegistrationRegistry implements RegistrationRemoteService {
         if (this.isAlreadyRegistered(nickName)) {
             return RegistrationResponseStatusCode.NICK_ALREADY_REGISTERED_ERROR;
         }
-        if (storage.register(nickName, password)) {
+        if (UserStorage.getInstance().register(nickName, password)) {
             return RegistrationResponseStatusCode.OK;
         }
         return RegistrationResponseStatusCode.INTERNAL_ERROR;
@@ -48,6 +45,6 @@ public class RegistrationRegistry implements RegistrationRemoteService {
 
     @Override
     public synchronized boolean isAlreadyRegistered(String nickName) throws RemoteException {
-        return storage.exists(nickName);
+        return UserStorage.getInstance().exists(nickName);
     }
 }

@@ -13,10 +13,8 @@ import java.util.Locale;
  */
 public abstract class BaseTranslationService implements TranslationService {
 
-    /** The chained translation service to be used according to the configs
-     *  NOTE: The singletons used in the chain are not lazy loaded.
-     * */
-    private static TranslationService chain = BaseTranslationService.getChain();
+    /** The chained translation service to be used according to the configs */
+    private static TranslationService chain;
 
     /** The next request handler */
     private TranslationService next;
@@ -38,14 +36,16 @@ public abstract class BaseTranslationService implements TranslationService {
      * NOTE: In multithreaded application don't lazy load the chain or,
      * if needed, make getInstance synchronized
      */
-    static TranslationService getChain() {
+   public  static TranslationService getChain() {
         if (chain == null) {
             Config config = Config.getInstance();
             // This is the third-party service used to translate the words.
-            TranslationService head = MyMemoryAPI.getInstance();
+            TranslationService head = new MyMemoryAPI();
             // Chain assembler section.
             if (config.useTranslationCache()) {
-                head.setNext(TranslationsPool.getInstance(config.getCacheMaxSize()));
+                TranslationService cache = new TranslationsPool(config.getCacheMaxSize());
+                cache.setNext(head);
+                head = cache;
             }
             // Configures languages only at the end of the chain assembly process
             // to propagate the settings.

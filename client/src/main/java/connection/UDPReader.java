@@ -9,8 +9,8 @@ import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 public class UDPReader implements Runnable {
@@ -33,7 +33,7 @@ public class UDPReader implements Runnable {
         datagramSocket.connect(InetAddress.getByName(Config.SERVER_NAME), Config.UDP_PORT);
         // Exit from blocking read every second to checks if the client is closing.
         datagramSocket.setSoTimeout(TIMEOUT);
-        this.packets = new LinkedBlockingQueue<>();
+        this.packets = new ArrayBlockingQueue<>(20);
     }
 
     public static UDPReader getInstance() throws IllegalStateException {
@@ -65,25 +65,12 @@ public class UDPReader implements Runnable {
                 ));
                 if (OperationCode.FORWARD_CHALLENGE.equals(wqPacket.getOperationCode())) {
                     this.publishPacket(wqPacket);
-                    /*// The nickName of the original challenge requester.
-                    String nickname = wqPacket.getFriend();
-                    if (nickname != null && !nickname.isEmpty()) {
-                        // Create an acceptance alert.
-                        Prompt prompt = new Prompt(
-                                Prompt.ACCEPTANCE_ALERT.replace(Prompt.NAME_MACRO, nickname),
-                                new AcceptanceBattleProcessor(nickname),
-                                CliState.ACCEPT_BATTLE_ALERT
-                        );
-                        // Put it in the queue.
-                        CliManager.getInstance().enqueue(prompt);
-                    }
-                    */
                 }
             } catch (IOException e) {
-                // Do nothing, just check for exit condition and stops on receive again.
+                // Do nothing, just check for exit condition and stops or receive again.
             }
-
         }
+        this.datagramSocket.close();
     }
 
     /**
@@ -111,7 +98,23 @@ public class UDPReader implements Runnable {
         return packets.poll(1, TimeUnit.SECONDS);
     }
 
-    public boolean publishPacket(PacketPojo packetPojo) {
-        return this.packets.offer(packetPojo);
+
+    public PacketPojo consumePacket(int ms) throws InterruptedException {
+        return packets.poll(ms, TimeUnit.MILLISECONDS);
+    }
+
+    public void publishPacket(PacketPojo packetPojo) {
+        if (!this.packets.offer(packetPojo)) {
+            // The queue is full, discard the eldest packet
+            try {
+                // Discard the packet.
+                this.consumePacket(0);
+            } catch (InterruptedException e) {
+                // Ignore, if not immediately available then we can retry
+                // to add an element because the queue is empty.
+            }
+            // Retry the insertion.
+            this.publishPacket(packetPojo);
+        }
     }
 }

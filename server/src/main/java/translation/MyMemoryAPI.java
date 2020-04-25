@@ -11,21 +11,9 @@ import java.util.stream.Collectors;
 
 /**
  * https://mymemory.translated.net/doc/spec.php
- * A singleton which implements MyMemory Translation service API.
- * NOTE: In multithreaded application don't lazy load this class or,
- * if needed, make getInstance synchronized
+ * Implements MyMemory Translation service API.
  */
 public class MyMemoryAPI extends BaseTranslationService {
-
-    /** Singleton pattern */
-    private static MyMemoryAPI instance;
-    private MyMemoryAPI() {}
-    static MyMemoryAPI getInstance() {
-        if (instance == null) {
-            instance = new MyMemoryAPI();
-        }
-        return instance;
-    }
 
     /**
      * Source and language pair, separated by the | symbol. Use ISO standard names or RFC3066. Mandatory.

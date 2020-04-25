@@ -2,6 +2,7 @@ import cli.CliManager;
 import cli.processors.LoginProcessor;
 import connection.TCPHandler;
 import connection.UDPReader;
+
 import java.io.IOException;
 
 
@@ -21,16 +22,14 @@ public class MainClassWQClient {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        System.out.println("[Client] Starting client");
+        System.out.println("Welcome to World Quizzle!");
         MainClassWQClient mainClassWQClient = new MainClassWQClient();
         mainClassWQClient.run();
     }
 
     private void run() throws IOException, InterruptedException {
-        // Starts eval loop.
-        while (!CliManager.getInstance().shouldShutdown()) {
-            CliManager.getInstance().executeNext();
-        }
+        // Starts FSM prompt lifecycle.
+        CliManager.getInstance().start();
         // Free resources.
         TCPHandler.getInstance().close();
         udpReader.stop();

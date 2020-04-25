@@ -14,7 +14,7 @@ import java.util.Set;
 
 class TranslationsPoolTest {
 
-    private final TranslationsPool translationsPool = TranslationsPool.getInstance(3);
+    private final TranslationsPool translationsPool = new TranslationsPool(3);
 
     @BeforeEach
     void setLanguage() {

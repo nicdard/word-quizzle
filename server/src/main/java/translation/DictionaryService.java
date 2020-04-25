@@ -9,6 +9,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 /**
@@ -26,11 +27,6 @@ public class DictionaryService {
      */
     private List<String> words;
 
-    /**
-     * A random number generator to get random words from the known ones.
-     */
-    private Random generator;
-
     /** The singleton instance */
     private static DictionaryService instance = getInstance();
 
@@ -40,7 +36,6 @@ public class DictionaryService {
         this.words.addAll(Files.readAllLines(
                 Paths.get(Config.getInstance().getDictionaryFilePath())
         ));
-        this.generator = new Random(System.currentTimeMillis());
     }
 
     public static DictionaryService getInstance() {
@@ -65,7 +60,7 @@ public class DictionaryService {
             throw new NoSuchElementException("This requested number can't be fulfilled with the actual word list!");
         }
         // Builds a random subset.
-        Set<String> set = this.generator.ints(n, 0, this.words.size())
+        Set<String> set = ThreadLocalRandom.current().ints(n, 0, this.words.size())
                 .mapToObj(i -> this.words.get(i))
                 .collect(Collectors.toSet());
         if (set.size() != n) {
